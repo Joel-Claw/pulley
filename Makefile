@@ -5,15 +5,15 @@ VERSION?=0.1.0
 LDFLAGS=-ldflags "-s -w -X main.version=$(VERSION)"
 
 build:
-	go build $(LDFLAGS) -o $(BINARY) .
+	go build $(LDFLAGS) -o $(BINARY) ./cmd/autopull
 
 install: build
 	install -m 755 $(BINARY) /usr/local/bin/$(BINARY)
-	install -m 644 autopull.service /etc/systemd/system/autopull.service
+	install -m 644 install/autopull.service /etc/systemd/system/autopull.service
 	systemctl daemon-reload
 
 test:
-	go test -v ./...
+	go test -v ./cmd/autopull/
 
 clean:
 	rm -f $(BINARY)
