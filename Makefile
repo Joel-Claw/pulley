@@ -1,7 +1,7 @@
 .PHONY: build install test clean
 
 BINARY=pulley
-VERSION?=0.3.1
+VERSION?=0.4.0
 LDFLAGS=-ldflags "-s -w -X main.version=$(VERSION)"
 
 build:

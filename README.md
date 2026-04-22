@@ -54,7 +54,7 @@ curl -fsSL https://github.com/Joel-Claw/pulley/releases/latest/download/install.
 **Specific version:**
 
 ```bash
-curl -fsSL https://github.com/Joel-Claw/pulley/releases/latest/download/install.sh | sudo bash v=0.3.1
+curl -fsSL https://github.com/Joel-Claw/pulley/releases/latest/download/install.sh | sudo bash v=0.4.0
 ```
 
 ### Other ways to install
@@ -100,16 +100,16 @@ Grab the right binary from [the latest release](https://github.com/Joel-Claw/pul
 
 | Platform | File |
 |----------|------|
-| Linux ARM64 (Pi) | `pulley-0.3.1-linux-arm64` |
-| Linux AMD64 | `pulley-0.3.1-linux-amd64` |
-| macOS Apple Silicon | `pulley-0.3.1-darwin-arm64` |
-| macOS Intel | `pulley-0.3.1-darwin-amd64` |
+| Linux ARM64 (Pi) | `pulley-0.4.0-linux-arm64` |
+| Linux AMD64 | `pulley-0.4.0-linux-amd64` |
+| macOS Apple Silicon | `pulley-0.4.0-darwin-arm64` |
+| macOS Intel | `pulley-0.4.0-darwin-amd64` |
 
 ```bash
 # Download, verify, and install
-wget https://github.com/Joel-Claw/pulley/releases/latest/download/pulley-0.3.1-linux-arm64
-chmod +x pulley-0.3.1-linux-arm64
-sudo mv pulley-0.3.1-linux-arm64 /usr/local/bin/pulley
+wget https://github.com/Joel-Claw/pulley/releases/latest/download/pulley-0.4.0-linux-arm64
+chmod +x pulley-0.4.0-linux-arm64
+sudo mv pulley-0.4.0-linux-arm64 /usr/local/bin/pulley
 
 # Verify the checksum
 curl -fsSL https://github.com/Joel-Claw/pulley/releases/latest/download/checksums-sha256.txt | sha256sum -c --ignore-missing
@@ -123,8 +123,8 @@ sudo systemctl enable pulley
 You can also verify the binary works before installing:
 
 ```bash
-./pulley-0.3.1-linux-arm64 version
-# pulley 0.3.1
+./pulley-0.4.0-linux-arm64 version
+# pulley 0.4.0
 ```
 
 </details>
@@ -136,13 +136,13 @@ For Debian and Ubuntu, pre-built `.deb` packages are available:
 
 | Platform | File |
 |----------|------|
-| ARM64 (Pi) | `pulley_0.3.1_arm64.deb` |
-| AMD64 | `pulley_0.3.1_amd64.deb` |
+| ARM64 (Pi) | `pulley_0.4.0_arm64.deb` |
+| AMD64 | `pulley_0.4.0_amd64.deb` |
 
 ```bash
 # Download and install
-wget https://github.com/Joel-Claw/pulley/releases/latest/download/pulley_0.3.1_arm64.deb
-sudo dpkg -i pulley_0.3.1_arm64.deb
+wget https://github.com/Joel-Claw/pulley/releases/latest/download/pulley_0.4.0_arm64.deb
+sudo dpkg -i pulley_0.4.0_arm64.deb
 
 # The .deb installs:
 # - /usr/local/bin/pulley
