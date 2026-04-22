@@ -337,6 +337,14 @@ The daemon checks every 60 seconds:
 
 ## Installation
 
+The **recommended** way is the one-line curl command (downloads binary, verifies checksum, installs everything):
+
+```bash
+curl -fsSL https://github.com/Joel-Claw/pulley/releases/latest/download/install.sh | sudo bash
+```
+
+Below are alternative methods for those who prefer them.
+
 ### From source (any Linux)
 
 ```bash
