@@ -306,3 +306,36 @@ func TestSplitBranches(t *testing.T) {
 		}
 	}
 }
+
+func TestOvernightRange(t *testing.T) {
+	tests := []struct {
+		name string
+		rng  string
+		hour int
+		min  int
+		want bool
+	}{
+		// Normal range: 09:00-17:00
+		{"morning in range", "09:00-17:00", 10, 0, true},
+		{"before range", "09:00-17:00", 8, 0, false},
+		{"after range", "09:00-17:00", 18, 0, false},
+		// Overnight range: 18:00-06:00 (crosses midnight)
+		{"evening in overnight range", "18:00-06:00", 22, 0, true},
+		{"midnight in overnight range", "18:00-06:00", 0, 0, true},
+		{"early morning in overnight range", "18:00-06:00", 5, 0, true},
+		{"daytime outside overnight range", "18:00-06:00", 12, 0, false},
+		{"just before overnight range", "18:00-06:00", 17, 59, false},
+		{"just after overnight range", "18:00-06:00", 6, 1, false},
+		{"start boundary", "18:00-06:00", 18, 0, true},
+		{"end boundary", "18:00-06:00", 6, 0, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			now := time.Date(2026, 4, 22, tt.hour, tt.min, 0, 0, time.UTC)
+			got := isWithinRange(now, tt.rng)
+			if got != tt.want {
+				t.Errorf("isWithinRange(%02d:%02d, %q) = %v, want %v", tt.hour, tt.min, tt.rng, got, tt.want)
+			}
+		})
+	}
+}

@@ -139,6 +139,7 @@ func matchesTimes(now time.Time, times []string) bool {
 }
 
 // isWithinRange checks if the current time is within a time range like "09:00-17:00".
+// Supports overnight ranges like "18:00-06:00" (crosses midnight).
 func isWithinRange(now time.Time, rng string) bool {
 	parts := splitRange(rng)
 	if len(parts) != 2 {
@@ -150,7 +151,12 @@ func isWithinRange(now time.Time, rng string) bool {
 		return true // invalid = no restriction
 	}
 	nowMins := now.Hour()*60 + now.Minute()
-	return nowMins >= start && nowMins <= end
+	if start <= end {
+		// Normal range: 09:00-17:00
+		return nowMins >= start && nowMins <= end
+	}
+	// Overnight range: 18:00-06:00 (start > end means crosses midnight)
+	return nowMins >= start || nowMins <= end
 }
 
 // parseTime parses "HH:MM" into minutes since midnight.
