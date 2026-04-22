@@ -19,6 +19,34 @@ You have multiple git repos on a machine, some you want updated every 15 minutes
 
 ## Quick Start
 
+### One-line install (recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Joel-Claw/autopull/main/install.sh | sudo bash
+```
+
+This works on Debian, Ubuntu, Arch, Fedora, openSUSE, Alpine, NixOS, and any Linux with Go and git. It detects your distro, installs dependencies, builds from source, and sets up the systemd service.
+
+To **update** an existing installation:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Joel-Claw/autopull/main/install.sh | sudo bash
+```
+
+Same command. It detects the existing install, rebuilds, and restarts the service.
+
+To **uninstall**:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Joel-Claw/autopull/main/install.sh | sudo bash -s -- --uninstall
+```
+
+To install a **specific version**:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Joel-Claw/autopull/main/install.sh | sudo bash -s -- --version=v0.1.0
+```
+
 ### Build and install
 
 ```bash

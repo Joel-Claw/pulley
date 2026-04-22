@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+var version = "0.1.0" // set via -ldflags at build time
+
 func main() {
 	if len(os.Args) < 2 {
 		printUsage()
@@ -25,6 +27,8 @@ func main() {
 		cmdPull(os.Args[2:])
 	case "daemon":
 		cmdDaemon()
+	case "version", "-v", "--version":
+		fmt.Printf("autopull %s\n", version)
 	case "help", "-h", "--help":
 		printUsage()
 	default:
@@ -43,6 +47,7 @@ Usage:
   autopull list                                             List registered repos
   autopull pull [path]                                      Pull repos now
   autopull daemon                                           Run as daemon (foreground)
+  autopull version                                          Show version
 
 Schedule flags:
   --interval 15m     Pull every 15 minutes (default: 30m)
