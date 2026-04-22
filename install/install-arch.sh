@@ -10,10 +10,17 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+# Check git
+if ! command -v git &>/dev/null; then
+    echo "error: git is required but not installed. Install it first:"
+    echo "  sudo pacman -S git"
+    exit 1
+fi
+
 # Install dependencies
 if ! command -v go &>/dev/null; then
     echo "Installing Go..."
-    pacman -S --noconfirm go git
+    pacman -S --noconfirm go
 fi
 
 # Build

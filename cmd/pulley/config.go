@@ -5,15 +5,17 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
 // Config holds all pulley configuration.
 type Config struct {
-	DefaultInterval string     `json:"defaultInterval,omitempty"`
-	DefaultTimes    []string   `json:"defaultTimes,omitempty"`
-	DefaultRange    string     `json:"defaultRange,omitempty"` // e.g. "09:00-17:00" means pull only within this time window
-	Repos           []RepoEntry `json:"repos"`
+	DefaultInterval  string     `json:"defaultInterval,omitempty"`
+	DefaultTimes     []string   `json:"defaultTimes,omitempty"`
+	DefaultRange     string     `json:"defaultRange,omitempty"` // e.g. "09:00-17:00"
+	DefaultBranches  []string   `json:"defaultBranches,omitempty"` // e.g. ["main", "dev"] or ["all"]
+	Repos            []RepoEntry `json:"repos"`
 }
 
 // EffectiveInterval returns the interval for a repo, falling back to the config default then "30m".
@@ -38,6 +40,17 @@ func (c *Config) EffectiveTimes(s Schedule) []string {
 	return nil
 }
 
+// EffectiveBranches returns the branches for a repo, falling back to the config default.
+func (c *Config) EffectiveBranches(s Schedule) []string {
+	if len(s.Branches) > 0 {
+		return s.Branches
+	}
+	if len(c.DefaultBranches) > 0 {
+		return c.DefaultBranches
+	}
+	return nil // nil = current branch only
+}
+
 // EffectiveRange returns the time range for a repo, falling back to the config default.
 func (c *Config) EffectiveRange(s Schedule) string {
 	if s.Range != "" {
@@ -57,7 +70,8 @@ type RepoEntry struct {
 type Schedule struct {
 	Interval string   `json:"interval,omitempty"`
 	Times    []string `json:"times,omitempty"`
-	Range    string   `json:"range,omitempty"` // e.g. "09:00-17:00"
+	Range    string   `json:"range,omitempty"`    // e.g. "09:00-17:00"
+	Branches []string `json:"branches,omitempty"` // e.g. ["main", "dev"] or ["all"]
 }
 
 // ParseInterval parses a duration string like "15m", "2h", "30m" into a time.Duration.
@@ -141,7 +155,7 @@ func isWithinRange(now time.Time, rng string) bool {
 
 // parseTime parses "HH:MM" into minutes since midnight.
 func parseTime(s string) (int, error) {
-	s = trimSpace(s)
+	s = strings.TrimSpace(s)
 	var h, m int
 	n, err := fmt.Sscanf(s, "%d:%d", &h, &m)
 	if err != nil || n != 2 {
@@ -163,15 +177,6 @@ func splitRange(rng string) []string {
 	return []string{rng}
 }
 
-func trimSpace(s string) string {
-	result := make([]byte, 0, len(s))
-	for _, c := range s {
-		if c != ' ' && c != '\t' {
-			result = append(result, byte(c))
-		}
-	}
-	return string(result)
-}
 
 // ConfigPath returns the path to the config file.
 func ConfigPath() string {

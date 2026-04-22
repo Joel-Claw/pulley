@@ -52,6 +52,12 @@ if [ "$(id -u)" -ne 0 ]; then
     error "run as root: curl ... | sudo bash"
 fi
 
+# ── Check git ──────────────────────────────────────────────────────────────
+
+if ! command -v git &>/dev/null; then
+    error "git is required but not installed. Install it first, then re-run."
+fi
+
 # ── Detect distro ──────────────────────────────────────────────────────────
 
 detect_distro() {

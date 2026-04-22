@@ -16,6 +16,6 @@ RUN useradd -m -s /bin/bash testuser
 USER testuser
 WORKDIR /home/testuser
 
-COPY docker-test.sh /docker-test.sh
+COPY test/docker/docker-test.sh /docker-test.sh
 
 ENTRYPOINT ["/bin/bash", "/docker-test.sh"]

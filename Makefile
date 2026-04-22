@@ -1,7 +1,7 @@
 .PHONY: build install test clean
 
 BINARY=pulley
-VERSION?=0.1.0
+VERSION?=0.2.0
 LDFLAGS=-ldflags "-s -w -X main.version=$(VERSION)"
 
 build:
@@ -14,6 +14,9 @@ install: build
 
 test:
 	go test -v ./cmd/pulley/
+
+docker-test:
+	sudo docker build -t pulley-test -f test/docker/Dockerfile . && sudo docker run --rm pulley-test
 
 clean:
 	rm -f $(BINARY)

@@ -44,7 +44,7 @@ func printUsage() {
 	fmt.Println(`pulley - automatic git pull daemon
 
 Usage:
-  pulley add [path] [--interval <dur>] [--at <times>] [--range <range>]
+  pulley add [path] [--interval <dur>] [--at <times>] [--range <range>] [--branches <branches>]
                                                 Register a repo
   pulley remove <path>                          Unregister a repo
   pulley list                                   List registered repos
@@ -60,11 +60,13 @@ Schedule flags (for add):
   --interval 15m          Pull every 15 minutes (default: 30m or config default)
   --at "09:00,18:00"      Pull at specific times (HH:MM, comma-separated)
   --range "09:00-17:00"   Only pull within this time window
+  --branches "main,dev"  Pull specific branches (comma-separated, or "all" for every local branch)
 
 Config keys:
   defaultInterval   Default pull interval for repos without one (e.g. 15m, 2h)
   defaultTimes      Default pull times for repos without any
-  defaultRange      Default time range - repos only pull within this window`)
+  defaultRange      Default time range - repos only pull within this window
+  defaultBranches   Default branches to pull (e.g. ["main","dev"] or ["all"])`)
 }
 
 func cmdAdd(args []string) {
@@ -72,6 +74,7 @@ func cmdAdd(args []string) {
 	var interval string
 	var timesRaw string
 	var timeRange string
+	var branchesRaw string
 
 	i := 0
 	for i < len(args) {
@@ -137,6 +140,9 @@ func cmdAdd(args []string) {
 	if timeRange != "" {
 		schedule.Range = timeRange
 	}
+	if branchesRaw != "" {
+		schedule.Branches = splitBranches(branchesRaw)
+	}
 
 	entry := RepoEntry{
 		Path:     root,
@@ -176,6 +182,16 @@ func cmdAdd(args []string) {
 			fmt.Printf(" (from config default)")
 		}
 		fmt.Println()
+	}
+	effectiveBranches := cfg.EffectiveBranches(schedule)
+	if len(effectiveBranches) > 0 {
+		fmt.Printf("  Branches: %v", effectiveBranches)
+		if len(schedule.Branches) == 0 && len(cfg.DefaultBranches) > 0 {
+			fmt.Printf(" (from config default)")
+		}
+		fmt.Println()
+	} else {
+		fmt.Println("  Branches: current only")
 	}
 }
 
@@ -229,7 +245,7 @@ func cmdList() {
 	}
 
 	// Show defaults if set
-	if cfg.DefaultInterval != "" || len(cfg.DefaultTimes) > 0 || cfg.DefaultRange != "" {
+	if cfg.DefaultInterval != "" || len(cfg.DefaultTimes) > 0 || cfg.DefaultRange != "" || len(cfg.DefaultBranches) > 0 {
 		fmt.Println("Defaults:")
 		if cfg.DefaultInterval != "" {
 			fmt.Printf("  Interval: %s\n", cfg.DefaultInterval)
@@ -239,6 +255,9 @@ func cmdList() {
 		}
 		if cfg.DefaultRange != "" {
 			fmt.Printf("  Range: %s\n", cfg.DefaultRange)
+		}
+		if len(cfg.DefaultBranches) > 0 {
+			fmt.Printf("  Branches: %v\n", cfg.DefaultBranches)
 		}
 		fmt.Println()
 	}
@@ -277,6 +296,14 @@ func cmdList() {
 			}
 			fmt.Println()
 		}
+		effectiveBranches := cfg.EffectiveBranches(r.Schedule)
+		if len(effectiveBranches) > 0 {
+			fmt.Printf("   Branches: %v", effectiveBranches)
+			if len(r.Schedule.Branches) == 0 && len(cfg.DefaultBranches) > 0 {
+				fmt.Printf(" (default)")
+			}
+			fmt.Println()
+		}
 		if r.LastPull != "" {
 			fmt.Printf("   Last pull: %s\n", r.LastPull)
 		}
@@ -305,8 +332,17 @@ func cmdPull(args []string) {
 		if target != "" && r.Path != target {
 			continue
 		}
+		branches := cfg.EffectiveBranches(r.Schedule)
+		if len(branches) == 1 && branches[0] == "all" {
+			var err error
+			branches, err = GitListBranches(r.Path)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "  warning: could not list branches: %v\n", err)
+				branches = nil
+			}
+		}
 		fmt.Printf("Pulling %s...\n", r.Path)
-		if err := GitPull(r.Path); err != nil {
+		if err := GitPull(r.Path, branches); err != nil {
 			fmt.Fprintf(os.Stderr, "  failed: %v\n", err)
 			continue
 		}
@@ -356,8 +392,17 @@ func pullIfNeeded(cfg *Config) {
 			continue
 		}
 
+		branches := cfg.EffectiveBranches(r.Schedule)
+		if len(branches) == 1 && branches[0] == "all" {
+			var err error
+			branches, err = GitListBranches(r.Path)
+			if err != nil {
+				log.Printf("  warning: could not list branches: %v", err)
+				branches = nil
+			}
+		}
 		log.Printf("pulling %s", r.Path)
-		if err := GitPull(r.Path); err != nil {
+		if err := GitPull(r.Path, branches); err != nil {
 			log.Printf("  failed: %v", err)
 			continue
 		}
@@ -414,6 +459,11 @@ func cmdConfigShow() {
 	} else {
 		fmt.Println("  defaultRange: (not set)")
 	}
+	if len(cfg.DefaultBranches) > 0 {
+		fmt.Printf("  defaultBranches: %v\n", cfg.DefaultBranches)
+	} else {
+		fmt.Println("  defaultBranches: (not set, pulls current branch only)")
+	}
 	fmt.Printf("  repos: %d registered\n", len(cfg.Repos))
 }
 
@@ -428,6 +478,7 @@ func cmdConfigSet(args []string) {
 	var interval string
 	var timesRaw string
 	var timeRange string
+	var branchesRaw string
 	var key string
 	var value string
 
@@ -455,6 +506,13 @@ func cmdConfigSet(args []string) {
 				os.Exit(1)
 			}
 			timeRange = args[i]
+		case "--branches":
+			i++
+			if i >= len(args) {
+				fmt.Fprintln(os.Stderr, "--branches requires a value (e.g. \"main,dev\" or \"all\")")
+				os.Exit(1)
+			}
+			branchesRaw = args[i]
 		default:
 			if key == "" {
 				key = args[i]
@@ -481,6 +539,11 @@ func cmdConfigSet(args []string) {
 	if timeRange != "" {
 		cfg.DefaultRange = timeRange
 		fmt.Printf("Set defaultRange: %s\n", timeRange)
+		changed = true
+	}
+	if branchesRaw != "" {
+		cfg.DefaultBranches = splitBranches(branchesRaw)
+		fmt.Printf("Set defaultBranches: %v\n", cfg.DefaultBranches)
 		changed = true
 	}
 
@@ -511,16 +574,18 @@ func cmdConfigSet(args []string) {
 			fmt.Fprintf(os.Stderr, "unknown config key: %s\n", key)
 			fmt.Fprintln(os.Stderr, "Valid keys: defaultInterval, defaultRange")
 			fmt.Fprintln(os.Stderr, "Use flags for defaultTimes: --at \"09:00,18:00\"")
+			fmt.Fprintln(os.Stderr, "Use flags for defaultBranches: --branches \"main,dev\"")
 			os.Exit(1)
 		}
 	}
 
 	if !changed {
-		fmt.Fprintln(os.Stderr, "nothing to set. Use --interval, --at, --range, or a key=value pair.")
+		fmt.Fprintln(os.Stderr, "nothing to set. Use --interval, --at, --range, --branches, or a key=value pair.")
 		fmt.Fprintln(os.Stderr, "Examples:")
 		fmt.Fprintln(os.Stderr, "  pulley config set --interval 15m")
 		fmt.Fprintln(os.Stderr, "  pulley config set --at \"09:00,18:00\"")
 		fmt.Fprintln(os.Stderr, "  pulley config set --range \"09:00-17:00\"")
+		fmt.Fprintln(os.Stderr, "  pulley config set --branches \"main,dev\"")
 		fmt.Fprintln(os.Stderr, "  pulley config set defaultInterval 2h")
 		os.Exit(1)
 	}
@@ -538,6 +603,19 @@ func splitTimes(raw string) []string {
 		t = strings.TrimSpace(t)
 		if t != "" {
 			result = append(result, t)
+		}
+	}
+	return result
+}
+
+// splitBranches splits a comma-separated branch string like "main,dev" into a slice.
+// The special value "all" is kept as-is.
+func splitBranches(raw string) []string {
+	var result []string
+	for _, b := range strings.Split(raw, ",") {
+		b = strings.TrimSpace(b)
+		if b != "" {
+			result = append(result, b)
 		}
 	}
 	return result

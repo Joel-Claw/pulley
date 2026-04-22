@@ -241,3 +241,68 @@ func TestParseTime(t *testing.T) {
 		}
 	}
 }
+func TestEffectiveBranches(t *testing.T) {
+	tests := []struct {
+		name      string
+		cfg       Config
+		schedule  Schedule
+		want      []string
+	}{
+		{
+			name:     "repo branches override default",
+			cfg:      Config{DefaultBranches: []string{"main"}},
+			schedule: Schedule{Branches: []string{"dev", "staging"}},
+			want:    []string{"dev", "staging"},
+		},
+		{
+			name:     "falls back to default branches",
+			cfg:      Config{DefaultBranches: []string{"main", "dev"}},
+			schedule: Schedule{},
+			want:    []string{"main", "dev"},
+		},
+		{
+			name:     "no branches set returns nil",
+			cfg:      Config{},
+			schedule: Schedule{},
+			want:    nil,
+		},
+		{
+			name:     "all keyword passes through",
+			cfg:      Config{},
+			schedule: Schedule{Branches: []string{"all"}},
+			want:    []string{"all"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.cfg.EffectiveBranches(tt.schedule)
+			if len(got) != len(tt.want) {
+				t.Errorf("EffectiveBranches() = %v, want %v", got, tt.want)
+				return
+			}
+			for i, v := range got {
+				if v != tt.want[i] {
+					t.Errorf("EffectiveBranches()[%d] = %q, want %q", i, v, tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+func TestSplitBranches(t *testing.T) {
+	tests := []struct {
+		input string
+		want  []string
+	}{
+		{"main,dev", []string{"main", "dev"}},
+		{"all", []string{"all"}},
+		{" main , dev ", []string{"main", "dev"}},
+		{"", nil},
+	}
+	for _, tt := range tests {
+		got := splitBranches(tt.input)
+		if len(got) != len(tt.want) {
+			t.Errorf("splitBranches(%q) = %v, want %v", tt.input, got, tt.want)
+		}
+	}
+}

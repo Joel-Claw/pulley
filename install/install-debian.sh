@@ -15,11 +15,18 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+# Check git
+if ! command -v git &>/dev/null; then
+    echo "error: git is required but not installed. Install it first:"
+    echo "  sudo apt install git"
+    exit 1
+fi
+
 # Install dependencies
 if ! command -v go &>/dev/null; then
     echo "Installing Go..."
     apt-get update -qq
-    apt-get install -y -qq golang-go git
+    apt-get install -y -qq golang-go
 fi
 
 # Build
