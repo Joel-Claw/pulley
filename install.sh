@@ -151,11 +151,9 @@ SVCEOF
 
                     if ! systemctl is-enabled pulley &>/dev/null; then
                         systemctl enable pulley
-                        info "Service enabled (not started yet). Add repos first, then: systemctl start pulley"
-                    else
-                        systemctl is-active pulley &>/dev/null && systemctl restart pulley
-                        info "Service restarted"
                     fi
+                    systemctl start pulley
+                    info "Service started and enabled"
                 fi
 
                 INSTALLED_VERSION=$("$BINARY" version 2>&1 | head -1 || true)
@@ -314,15 +312,12 @@ EOF
     systemctl daemon-reload
     info "Installed: $SERVICE_FILE"
 
-    # Enable if not already enabled
+    # Enable and start
     if ! systemctl is-enabled pulley &>/dev/null; then
         systemctl enable pulley
-        info "Service enabled (not started). Add repos first, then: systemctl start pulley"
-    else
-        # Restart if it was already running (update)
-        systemctl is-active pulley &>/dev/null && systemctl restart pulley
-        info "Service restarted"
     fi
+    systemctl start pulley
+    info "Service started and enabled"
 fi
 
 # ── Done ────────────────────────────────────────────────────────────────────

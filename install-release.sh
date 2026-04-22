@@ -158,13 +158,9 @@ EOF
 
     if ! systemctl is-enabled pulley &>/dev/null; then
         systemctl enable pulley
-        info "Service enabled (not started yet)"
-    else
-        if systemctl is-active pulley &>/dev/null; then
-            systemctl restart pulley
-            info "Service restarted"
-        fi
     fi
+    systemctl start pulley
+    info "Service started and enabled"
 fi
 
 # ── Done ────────────────────────────────────────────────────────────────────
