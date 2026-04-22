@@ -106,11 +106,56 @@ Grab the right binary from [the latest release](https://github.com/Joel-Claw/pul
 | macOS Intel | `pulley-0.3.0-darwin-amd64` |
 
 ```bash
-chmod +x pulley-*
-mv pulley-* /usr/local/bin/pulley
+# Download, verify, and install
+wget https://github.com/Joel-Claw/pulley/releases/latest/download/pulley-0.3.0-linux-arm64
+chmod +x pulley-0.3.0-linux-arm64
+sudo mv pulley-0.3.0-linux-arm64 /usr/local/bin/pulley
+
+# Verify the checksum
+curl -fsSL https://github.com/Joel-Claw/pulley/releases/latest/download/checksums-sha256.txt | sha256sum -c --ignore-missing
+
+# Set up the systemd service
+sudo curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install/pulley.service -o /etc/systemd/system/pulley.service
+sudo systemctl daemon-reload
+sudo systemctl enable pulley
 ```
 
-You'll also want the systemd service file from `install/pulley.service`.
+You can also verify the binary works before installing:
+
+```bash
+./pulley-0.3.0-linux-arm64 version
+# pulley 0.3.0
+```
+
+</details>
+
+<details>
+<summary>Install .deb package (Debian/Ubuntu)</summary>
+
+For Debian and Ubuntu, pre-built `.deb` packages are available:
+
+| Platform | File |
+|----------|------|
+| ARM64 (Pi) | `pulley_0.3.0_arm64.deb` |
+| AMD64 | `pulley_0.3.0_amd64.deb` |
+
+```bash
+# Download and install
+wget https://github.com/Joel-Claw/pulley/releases/latest/download/pulley_0.3.0_arm64.deb
+sudo dpkg -i pulley_0.3.0_arm64.deb
+
+# The .deb installs:
+# - /usr/local/bin/pulley
+# - /etc/systemd/system/pulley.service
+# - Enables the service (does not start it)
+```
+
+After installing, add repos and start:
+
+```bash
+pulley add /path/to/repo
+sudo systemctl start pulley
+```
 
 </details>
 
