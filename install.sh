@@ -7,7 +7,7 @@
 # Options:
 #   --uninstall     Remove pulley
 #   --version TAG   Install specific version (default: latest)
-set -euo pipefail
+set -eo pipefail
 
 REPO="Joel-Claw/pulley"
 BINARY="/usr/local/bin/pulley"

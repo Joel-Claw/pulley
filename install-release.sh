@@ -4,11 +4,12 @@
 #   curl -fsSL https://github.com/Joel-Claw/pulley/releases/latest/download/install.sh | sudo bash
 #   Or: download and run: sudo ./install.sh
 #   Uninstall: | sudo bash uninstall
-set -euo pipefail
+set -eo pipefail
 
 REPO="Joel-Claw/pulley"
 BINARY="/usr/local/bin/pulley"
 SERVICE_FILE="/etc/systemd/system/pulley.service"
+VERSION=""
 UNINSTALL=false
 
 # Parse args
