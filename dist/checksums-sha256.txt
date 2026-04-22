@@ -1,0 +1,4 @@
+33e3a0f6270bea4b244b49156a626fa3e987613cd8dc7efbe3cb729ec15143de  dist/pulley-0.3.0-darwin-amd64
+e14ce18d537ddfdbb675769fd2de5780e69a59a3c73538d07ff86828f01d83ea  dist/pulley-0.3.0-darwin-arm64
+18f74e2fd2a8d1139b42bf5ad0c604c37b48d779df91362aad8f18243a9fdd83  dist/pulley-0.3.0-linux-amd64
+16b65aadc59a1e175cba8d3227783e51a52eee980d2de8596e4020e4a071ef6b  dist/pulley-0.3.0-linux-arm64

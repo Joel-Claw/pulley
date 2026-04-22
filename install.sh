@@ -58,6 +58,124 @@ if ! command -v git &>/dev/null; then
     error "git is required but not installed. Install it first, then re-run."
 fi
 
+# ── Try binary install first ───────────────────────────────────────────────
+
+ARCH=$(uname -m)
+OS=$(uname -s)
+
+CASE_OS=""; CASE_ARCH=""
+case "$OS" in
+    Linux)  CASE_OS="linux" ;;
+    Darwin) CASE_OS="darwin" ;;
+esac
+case "$ARCH" in
+    x86_64|amd64)  CASE_ARCH="amd64" ;;
+    aarch64|arm64) CASE_ARCH="arm64" ;;
+esac
+
+if [ -n "$CASE_OS" ] && [ -n "$CASE_ARCH" ]; then
+    # Get latest version
+    LATEST_VERSION=""
+    if command -v gh &>/dev/null; then
+        LATEST_VERSION=$(gh release view --repo "$REPO" --json tagName --jq '.tagName' 2>/dev/null || echo "")
+    fi
+    if [ -z "$LATEST_VERSION" ]; then
+        LATEST_VERSION=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null | grep '"tag_name"' | head -1 | sed -E 's/.*"tag_name":\s*"([^"]+)".*/\1/' || echo "")
+    fi
+
+    if [ -n "$LATEST_VERSION" ]; then
+        BINARY_NAME="pulley-${LATEST_VERSION#v}-$CASE_OS-$CASE_ARCH"
+        DOWNLOAD_URL="https://github.com/$REPO/releases/download/$LATEST_VERSION/$BINARY_NAME"
+
+        info "Trying pre-built binary for $CASE_OS/$CASE_ARCH..."
+        TMPDIR=$(mktemp -d)
+        cleanup() { rm -rf "$TMPDIR"; }
+        trap cleanup EXIT
+
+        if curl -fsSL "$DOWNLOAD_URL" -o "$TMPDIR/pulley" 2>/dev/null; then
+            # Verify checksum if available
+            CHECKSUMS_URL="https://github.com/$REPO/releases/download/$LATEST_VERSION/checksums-sha256.txt"
+            if curl -fsSL "$CHECKSUMS_URL" -o "$TMPDIR/checksums.txt" 2>/dev/null; then
+                EXPECTED=$(grep "$BINARY_NAME" "$TMPDIR/checksums.txt" | awk '{print $1}')
+                if [ -n "$EXPECTED" ]; then
+                    ACTUAL=$(sha256sum "$TMPDIR/pulley" | awk '{print $1}')
+                    if [ "$EXPECTED" != "$ACTUAL" ]; then
+                        warn "Checksum mismatch, falling back to source build"
+                        rm -rf "$TMPDIR"
+                        TMPDIR=$(mktemp -d)
+                    else
+                        info "Checksum verified ✓"
+                    fi
+                fi
+            fi
+
+            if [ -f "$TMPDIR/pulley" ] && [ -s "$TMPDIR/pulley" ]; then
+                chmod +x "$TMPDIR/pulley"
+                install -m 755 "$TMPDIR/pulley" "$BINARY"
+                info "Installed binary: $BINARY"
+
+                # Install systemd service
+                if [ -d /etc/systemd/system ]; then
+                    EXISTING_USER=""
+                    if [ -f "$SERVICE_FILE" ]; then
+                        EXISTING_USER=$(grep -oP '^User=\K.*' "$SERVICE_FILE" 2>/dev/null || true)
+                        EXISTING_GROUP=$(grep -oP '^Group=\K.*' "$SERVICE_FILE" 2>/dev/null || true)
+                    fi
+
+                    cat > "$SERVICE_FILE" <<'SVCEOF'
+[Unit]
+Description=Pulley - Automatic Git Pull Daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/pulley daemon
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+SVCEOF
+
+                    SVC_USER="${SUDO_USER:-$EXISTING_USER}"
+                    SVC_GROUP="${SUDO_USER:-$EXISTING_GROUP}"
+                    if [ -n "$SVC_USER" ]; then
+                        sed -i "s/\[Service\]/[Service]\nUser=$SVC_USER\nGroup=$SVC_GROUP/" "$SERVICE_FILE"
+                    fi
+
+                    systemctl daemon-reload
+                    info "Installed: $SERVICE_FILE"
+
+                    if ! systemctl is-enabled pulley &>/dev/null; then
+                        systemctl enable pulley
+                        info "Service enabled (not started yet). Add repos first, then: systemctl start pulley"
+                    else
+                        systemctl is-active pulley &>/dev/null && systemctl restart pulley
+                        info "Service restarted"
+                    fi
+                fi
+
+                INSTALLED_VERSION=$("$BINARY" version 2>&1 | head -1 || true)
+                echo ""
+                info "Done! $INSTALLED_VERSION (binary install)"
+                echo ""
+                echo "Quick start:"
+                echo "  pulley add /path/to/repo"
+                echo "  pulley add /path/to/repo --interval 15m --branches all"
+                echo "  sudo systemctl start pulley"
+                exit 0
+            fi
+        else
+            info "No pre-built binary available, building from source..."
+        fi
+    fi
+fi
+
+# ── Fallback: build from source ────────────────────────────────────────────
+
+info "Building from source..."
+
 # ── Detect distro ──────────────────────────────────────────────────────────
 
 detect_distro() {
