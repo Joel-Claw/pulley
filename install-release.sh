@@ -2,12 +2,21 @@
 # pulley release installer
 # Usage:
 #   curl -fsSL https://github.com/Joel-Claw/pulley/releases/latest/download/install.sh | sudo bash
-#   Or download this script and run: sudo ./install.sh
+#   Or: download and run: sudo ./install.sh
+#   Uninstall: | sudo bash uninstall
 set -euo pipefail
 
 REPO="Joel-Claw/pulley"
 BINARY="/usr/local/bin/pulley"
 SERVICE_FILE="/etc/systemd/system/pulley.service"
+UNINSTALL=false
+
+# Parse args
+for arg in "$@"; do
+    case "$arg" in
+        uninstall|--uninstall) UNINSTALL=true ;;
+    esac
+done
 
 # Colors
 RED='\033[0;31m'
@@ -18,6 +27,18 @@ NC='\033[0m'
 info()  { echo -e "${GREEN}[pulley]${NC} $*"; }
 warn()  { echo -e "${YELLOW}[pulley]${NC} $*"; }
 error() { echo -e "${RED}[pulley]${NC} $*" >&2; exit 1; }
+
+# ── Uninstall ──────────────────────────────────────────────────────────────
+
+if [ "$UNINSTALL" = true ]; then
+    echo "Uninstalling pulley..."
+    systemctl stop pulley 2>/dev/null || true
+    systemctl disable pulley 2>/dev/null || true
+    rm -f "$BINARY" "$SERVICE_FILE"
+    systemctl daemon-reload 2>/dev/null || true
+    info "Uninstalled pulley"
+    exit 0
+fi
 
 # ── Check root ─────────────────────────────────────────────────────────────
 
@@ -155,12 +176,10 @@ echo ""
 echo "Quick start:"
 echo "  pulley add /path/to/repo"
 echo "  pulley add /path/to/repo --interval 15m --branches all"
-echo "  pulley config set --interval 15m --range \"08:00-22:00\""
 echo "  sudo systemctl start pulley"
 echo ""
-echo "Update anytime:"
+echo "Update:"
 echo "  curl -fsSL https://github.com/Joel-Claw/pulley/releases/latest/download/install.sh | sudo bash"
 echo ""
 echo "Uninstall:"
-echo "  sudo systemctl stop pulley; sudo systemctl disable pulley"
-echo "  sudo rm /usr/local/bin/pulley /etc/systemd/system/pulley.service"
+echo "  curl -fsSL https://github.com/Joel-Claw/pulley/releases/latest/download/install.sh | sudo bash uninstall"

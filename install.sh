@@ -2,7 +2,7 @@
 # pulley universal installer/updater
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | bash
-#   curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | bash -s -- --uninstall
+#   curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | sudo bash uninstall
 #
 # Options:
 #   --uninstall     Remove pulley
@@ -12,15 +12,17 @@ set -euo pipefail
 REPO="Joel-Claw/pulley"
 BINARY="/usr/local/bin/pulley"
 SERVICE_FILE="/etc/systemd/system/pulley.service"
-VERSION="${1:-latest}"
+VERSION="latest"
 UNINSTALL=false
 
 # Parse args
 for arg in "$@"; do
     case "$arg" in
+        uninstall) UNINSTALL=true ;;
         --uninstall) UNINSTALL=true ;;
         --version=*) VERSION="${arg#--version=}" ;;
         --version)   shift; VERSION="${1:-latest}" ;;
+        v=*) VERSION="${arg#v=}" ;;
     esac
 done
 
@@ -338,4 +340,4 @@ echo "Update anytime:"
 echo "  curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | sudo bash"
 echo ""
 echo "Uninstall:"
-echo "  curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | sudo bash -s -- --uninstall"
+echo "  curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | sudo bash uninstall"

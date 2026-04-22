@@ -35,35 +35,32 @@ If you have uncommitted changes, `git pull --ff-only` will also refuse to procee
 
 ## Quick Start
 
-### One-line install (recommended)
+**Install:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | sudo bash
+curl -fsSL https://github.com/Joel-Claw/pulley/releases/latest/download/install.sh | sudo bash
 ```
 
-This works on Debian, Ubuntu, Arch, Fedora, openSUSE, Alpine, NixOS, and any Linux with Go and git. It detects your distro, installs dependencies, builds from source, and sets up the systemd service.
+That's it. Downloads the right binary for your system (Linux ARM64, Linux AMD64, macOS), verifies the checksum, installs to `/usr/local/bin/pulley`, and sets up the systemd service. No Go, no compiling.
 
-To **update** an existing installation:
+**Update:** same command, it replaces the binary and restarts the service.
+
+**Uninstall:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | sudo bash
+curl -fsSL https://github.com/Joel-Claw/pulley/releases/latest/download/install.sh | sudo bash uninstall
 ```
 
-Same command. It detects the existing install, rebuilds, and restarts the service.
-
-To **uninstall**:
+**Specific version:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | sudo bash -s -- --uninstall
+curl -fsSL https://github.com/Joel-Claw/pulley/releases/latest/download/install.sh | sudo bash v=0.3.0
 ```
 
-To install a **specific version**:
+### Other ways to install
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | sudo bash -s -- --version=v0.2.0
-```
-
-### Build and install
+<details>
+<summary>Build from source</summary>
 
 ```bash
 git clone https://github.com/Joel-Claw/pulley.git
@@ -72,7 +69,16 @@ make
 sudo make install
 ```
 
-### Or use an installer
+Or use the source installer (auto-detects distro, installs Go if needed, builds from source):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | sudo bash
+```
+
+</details>
+
+<details>
+<summary>Distro-specific installers</summary>
 
 ```bash
 # Debian / Ubuntu
@@ -81,9 +87,32 @@ sudo ./install/install-debian.sh
 # Arch Linux
 sudo ./install/install-arch.sh
 
-# Nix
+# Nix / NixOS
 ./install/install-nix.sh
 ```
+
+</details>
+
+<details>
+<summary>Download binary manually</summary>
+
+Grab the right binary from [the latest release](https://github.com/Joel-Claw/pulley/releases/latest):
+
+| Platform | File |
+|----------|------|
+| Linux ARM64 (Pi) | `pulley-0.3.0-linux-arm64` |
+| Linux AMD64 | `pulley-0.3.0-linux-amd64` |
+| macOS Apple Silicon | `pulley-0.3.0-darwin-arm64` |
+| macOS Intel | `pulley-0.3.0-darwin-amd64` |
+
+```bash
+chmod +x pulley-*
+mv pulley-* /usr/local/bin/pulley
+```
+
+You'll also want the systemd service file from `install/pulley.service`.
+
+</details>
 
 ### Set defaults and register repos
 
