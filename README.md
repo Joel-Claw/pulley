@@ -9,10 +9,12 @@ You have multiple git repos on a machine, some you want updated every 15 minutes
 ## Features
 
 - **Daemon mode** — runs as a systemd service, starts on boot
-- **Per-repo scheduling** — each repo gets its own interval or specific pull times
+- **Per-repo scheduling** — each repo gets its own interval, specific pull times, or time range
+- **Global defaults** — set default interval, times, and range for all repos at once
+- **Time ranges** — restrict pulling to a time window (e.g. business hours only)
 - **Safe registration** — verifies the folder is a valid git repo before adding
 - **Fast-forward only** — uses `git pull --ff-only` so it never creates unexpected merges
-- **Simple CLI** — add, remove, list, pull, daemon
+- **Simple CLI** — add, remove, list, pull, daemon, config
 - **Zero dependencies** — single static binary, no runtime requirements
 - **Config as JSON** — human-readable, version-controllable, easy to edit manually
 - **Works everywhere** — Debian, Ubuntu, Arch, NixOS, any Linux with systemd
@@ -44,7 +46,7 @@ curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | 
 To install a **specific version**:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | sudo bash -s -- --version=v0.1.0
+curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | sudo bash -s -- --version=v0.2.0
 ```
 
 ### Build and install
@@ -69,20 +71,21 @@ sudo ./install/install-arch.sh
 ./install/install-nix.sh
 ```
 
-### Register repos and start
+### Set defaults and register repos
 
 ```bash
-# Add a repo (defaults to every 30 minutes)
+# Set global defaults (applied to repos without their own schedule)
+pulley config set --interval 15m
+pulley config set --at "09:00,18:00"
+pulley config set --range "08:00-22:00"
+
+# Add a repo (uses config defaults if no flags given)
 pulley add /path/to/my-project
 
-# Pull every 15 minutes
-pulley add /path/to/my-project --interval 15m
-
-# Pull at specific times
+# Override per-repo
+pulley add /path/to/my-project --interval 5m
 pulley add /path/to/my-project --at "09:00,18:00"
-
-# Both interval and specific times
-pulley add /path/to/my-project --interval 2h --at "09:00,18:00"
+pulley add /path/to/my-project --range "09:00-17:00"
 
 # Start the daemon
 sudo systemctl start pulley
@@ -96,34 +99,58 @@ sudo systemctl start pulley
 |---------|-------------|
 | `pulley add [path] [flags]` | Register a git repo for auto-pulling |
 | `pulley remove <path>` | Unregister a repo |
-| `pulley list` | List all registered repos and their schedules |
+| `pulley list` | List all registered repos, schedules, and defaults |
 | `pulley pull [path]` | Pull all repos (or a specific one) right now |
 | `pulley daemon` | Run as foreground daemon (for systemd) |
+| `pulley config` | Show current config and defaults |
+| `pulley config set [flags]` | Set default interval, times, or range |
 | `pulley help` | Show usage information |
 
 ### Add flags
 
 | Flag | Example | Description |
 |------|---------|-------------|
-| `--interval` | `--interval 15m` | Pull every N minutes/hours (accepts Go duration syntax: `10m`, `2h`, `1h30m`) |
-| `--at` | `--at "09:00,18:00"` | Pull at specific times (HH:MM, comma-separated, 24h format) |
+| `--interval` | `--interval 15m` | Pull every N minutes/hours (Go duration: `10m`, `2h`, `1h30m`) |
+| `--at` | `--at "09:00,18:00"` | Pull at specific times (HH:MM, comma-separated, 24h) |
+| `--range` | `--range "09:00-17:00"` | Only pull within this time window |
 
-If no flags are given, the default interval is **30 minutes**.
+If no flags are given, the repo inherits config defaults. If no defaults are set, the interval is **30 minutes**.
+
+### Config set flags
+
+| Flag | Example | Description |
+|------|---------|-------------|
+| `--interval` | `--interval 15m` | Default pull interval for all repos |
+| `--at` | `--at "09:00,18:00"` | Default pull times for all repos |
+| `--range` | `--range "08:00-22:00"` | Default active time range for all repos |
+
+You can also set individual keys:
+
+```bash
+pulley config set defaultInterval 2h
+pulley config set defaultRange "09:00-17:00"
+```
 
 ### Examples
 
 ```bash
-# Add current directory
+# Set global defaults
+pulley config set --interval 15m --range "08:00-22:00"
+
+# Add current directory (inherits defaults)
 pulley add
 
-# Add with 10-minute interval
-pulley add /home/user/my-app --interval 10m
+# Add with 5-minute interval (overrides default)
+pulley add /home/user/my-app --interval 5m
 
-# Pull three times a day
+# Pull three times a day at specific times
 pulley add /home/user/docs --at "08:00,12:00,18:00"
 
-# Mix interval + specific times
-pulley add /home/user/monitoring --interval 5m --at "00:00"
+# Only pull during business hours
+pulley add /home/user/work-repo --range "09:00-17:00"
+
+# Mix interval + specific times + range
+pulley add /home/user/monitoring --interval 5m --at "00:00" --range "06:00-23:00"
 
 # Remove a repo
 pulley remove /home/user/my-app
@@ -131,8 +158,8 @@ pulley remove /home/user/my-app
 # Pull everything now
 pulley pull
 
-# Pull a specific repo now
-pulley pull /home/user/my-app
+# See current config and defaults
+pulley config
 
 # See what's registered
 pulley list
@@ -148,7 +175,9 @@ You can edit it directly or use the CLI. The daemon reloads the config every min
 
 ```json
 {
-  "defaultInterval": "30m",
+  "defaultInterval": "15m",
+  "defaultTimes": ["09:00", "18:00"],
+  "defaultRange": "08:00-22:00",
   "repos": [
     {
       "path": "/home/user/my-project",
@@ -160,7 +189,8 @@ You can edit it directly or use the CLI. The daemon reloads the config every min
       "path": "/home/user/work-repo",
       "schedule": {
         "interval": "2h",
-        "times": ["09:00", "18:00"]
+        "times": ["09:00", "18:00"],
+        "range": "09:00-17:00"
       }
     },
     {
@@ -180,16 +210,25 @@ You can edit it directly or use the CLI. The daemon reloads the config every min
 |--------|------|-------------|
 | `interval` | string | Go duration syntax (`"15m"`, `"2h"`, `"1h30m"`). Default: 30m |
 | `times` | string[] | Specific clock times in HH:MM format. Checked within a 1-minute window |
-| Both | — | If both are set, a pull happens when **either** condition is met |
+| `range` | string | Time window in `"HH:MM-HH:MM"` format. Pulling only happens within this range |
+| All combined | — | `range` gates whether pulling is allowed; `interval` and `times` trigger pulls when allowed |
+
+### Defaults hierarchy
+
+1. **Repo-level schedule** takes priority (interval, times, range)
+2. **Config defaults** fill in anything the repo doesn't set
+3. **Built-in fallback**: 30m interval if nothing else is configured
+
+So if you set `defaultRange: "09:00-17:00"` and a repo has no `range`, it inherits the default. But if the repo sets its own `range`, that wins.
 
 ### How scheduling works
 
 The daemon checks every 60 seconds:
 
-1. **Interval check**: If more time than the configured interval has passed since the last pull, it pulls
-2. **Time check**: If the current time (HH:MM) matches any entry in `times`, it pulls
-3. If both are configured, either condition triggers a pull
-4. If no schedule is set, defaults to every 30 minutes
+1. **Range gate**: If a range is set (on the repo or as default), only pull within that time window
+2. **Interval check**: If more time than the configured interval has passed since the last pull, it pulls
+3. **Time check**: If the current time (HH:MM) matches any entry in `times`, it pulls
+4. If both interval and times are configured, either condition triggers a pull
 5. `lastPull` is updated in the config after each successful pull
 
 ## Installation
@@ -286,7 +325,7 @@ The daemon runs as a systemd service. Key behaviors:
 
 - **Restart on failure** — if the process crashes, systemd restarts it after 30 seconds
 - **Start after network** — waits for network-online.target before starting
-- **Config hot-reload** — the daemon re-reads `config.json` every minute, so you can add/remove repos without restarting the service
+- **Config hot-reload** — the daemon re-reads `config.json` every minute, so you can add/remove repos or change defaults without restarting the service
 
 ### Service management
 
@@ -312,7 +351,7 @@ journalctl -u pulley -f
 1. **Registration**: `pulley add` verifies the path is a git repo using `git rev-parse --show-toplevel`, then stores the absolute path and schedule in `config.json`
 2. **Daemon loop**: Every 60 seconds, the daemon:
    - Reloads `config.json` (so you can edit it live)
-   - Checks each repo against its schedule
+   - Checks each repo against its schedule (with defaults applied)
    - Runs `git pull --ff-only` for repos that are due
    - Updates `lastPull` timestamps in the config
 3. **Fast-forward only**: Uses `--ff-only` to prevent unexpected merges. If a repo has diverged, the pull fails gracefully and the error is logged
@@ -323,18 +362,19 @@ journalctl -u pulley -f
 pulley/
 ├── cmd/
 │   └── pulley/
-│       ├── main.go        # CLI commands + daemon loop
-│       ├── config.go      # Config types, load/save, scheduling logic
-│       ├── git.go         # Git operations (pull, status, verify)
-│       └── main_test.go   # Tests
+│       ├── main.go              # CLI commands + daemon loop
+│       ├── config.go            # Config types, load/save, scheduling logic, ranges
+│       ├── git.go               # Git operations (pull, status, verify)
+│       ├── main_test.go         # Unit tests
+│       └── integration_test.go  # Integration tests
 ├── install/
-│   ├── pulley.service   # systemd unit file
-│   ├── install-arch.sh    # Arch Linux installer
-│   ├── install-debian.sh  # Debian/Ubuntu installer
-│   ├── install-nix.sh     # Nix/NixOS installer
-│   └── flake.nix          # Nix flake + NixOS module
+│   ├── pulley.service           # systemd unit file
+│   ├── install-arch.sh          # Arch Linux installer
+│   ├── install-debian.sh        # Debian/Ubuntu installer
+│   ├── install-nix.sh           # Nix/NixOS installer
+│   └── flake.nix                # Nix flake + NixOS module
 ├── docs/
-├── LICENSE                # MIT
+├── LICENSE                      # CC0 1.0 Universal
 ├── Makefile
 ├── go.mod
 └── README.md
@@ -348,4 +388,4 @@ pulley/
 
 ## License
 
-MIT
+CC0 1.0 Universal — public domain dedication. No rights reserved.

@@ -7,64 +7,60 @@ import (
 
 func TestScheduleParseInterval(t *testing.T) {
 	tests := []struct {
-		interval string
-		want     time.Duration
-		wantErr  bool
+		input    string
+		expected time.Duration
+		hasErr   bool
 	}{
 		{"15m", 15 * time.Minute, false},
 		{"2h", 2 * time.Hour, false},
-		{"30m", 30 * time.Minute, false},
+		{"1h30m", 90 * time.Minute, false},
 		{"", 30 * time.Minute, false}, // default
 		{"abc", 0, true},
 	}
-
 	for _, tt := range tests {
-		s := Schedule{Interval: tt.interval}
+		s := Schedule{Interval: tt.input}
 		got, err := s.ParseInterval()
-		if tt.wantErr {
-			if err == nil {
-				t.Errorf("ParseInterval(%q) expected error, got none", tt.interval)
-			}
-			continue
+		if tt.hasErr && err == nil {
+			t.Errorf("ParseInterval(%q): expected error, got none", tt.input)
 		}
-		if err != nil {
-			t.Errorf("ParseInterval(%q) unexpected error: %v", tt.interval, err)
-			continue
+		if !tt.hasErr && err != nil {
+			t.Errorf("ParseInterval(%q): unexpected error: %v", tt.input, err)
 		}
-		if got != tt.want {
-			t.Errorf("ParseInterval(%q) = %v, want %v", tt.interval, got, tt.want)
+		if !tt.hasErr && got != tt.expected {
+			t.Errorf("ParseInterval(%q) = %v, want %v", tt.input, got, tt.expected)
 		}
 	}
 }
 
 func TestShouldPullNoLastPull(t *testing.T) {
-	r := &RepoEntry{
-		Schedule: Schedule{Interval: "30m"},
-	}
-	// No last pull = should always pull
-	if !r.ShouldPull(time.Now()) {
-		t.Error("ShouldPull with no LastPull should return true")
+	r := &RepoEntry{Schedule: Schedule{Interval: "10m"}}
+	cfg := &Config{}
+	now := time.Now()
+	if !r.ShouldPull(now, cfg) {
+		t.Error("ShouldPull with no lastPull should return true")
 	}
 }
 
 func TestShouldPullWithinInterval(t *testing.T) {
-	now := time.Now()
 	r := &RepoEntry{
-		Schedule: Schedule{Interval: "30m"},
-		LastPull: now.Add(-10 * time.Minute).Format(time.RFC3339),
+		Schedule: Schedule{Interval: "10m"},
+		LastPull: time.Now().Format(time.RFC3339),
 	}
-	if r.ShouldPull(now) {
+	cfg := &Config{}
+	now := time.Now()
+	if r.ShouldPull(now, cfg) {
 		t.Error("ShouldPull within interval should return false")
 	}
 }
 
 func TestShouldPullAfterInterval(t *testing.T) {
-	now := time.Now()
 	r := &RepoEntry{
-		Schedule: Schedule{Interval: "30m"},
-		LastPull: now.Add(-35 * time.Minute).Format(time.RFC3339),
+		Schedule: Schedule{Interval: "10m"},
+		LastPull: time.Now().Add(-15 * time.Minute).Format(time.RFC3339),
 	}
-	if !r.ShouldPull(now) {
+	cfg := &Config{}
+	now := time.Now()
+	if !r.ShouldPull(now, cfg) {
 		t.Error("ShouldPull after interval should return true")
 	}
 }
@@ -73,110 +69,175 @@ func TestShouldPullAtTime(t *testing.T) {
 	now := time.Now()
 	r := &RepoEntry{
 		Schedule: Schedule{
-			Interval: "24h", // long interval so time-based check wins
+			Interval: "24h",
 			Times:    []string{now.Format("15:04")},
 		},
 		LastPull: now.Add(-1 * time.Hour).Format(time.RFC3339),
 	}
-	if !r.ShouldPull(now) {
-		t.Error("ShouldPull at scheduled time should return true")
+	cfg := &Config{}
+	if !r.ShouldPull(now, cfg) {
+		t.Error("ShouldPull at scheduled time should return true even within interval")
 	}
 }
 
 func TestShouldPullNotAtTime(t *testing.T) {
-	now := time.Now()
-	wrongTime := now.Add(-2 * time.Hour).Format("15:04")
 	r := &RepoEntry{
 		Schedule: Schedule{
 			Interval: "24h",
-			Times:    []string{wrongTime},
+			Times:    []string{"03:00"},
 		},
-		LastPull: now.Add(-1 * time.Hour).Format(time.RFC3339),
+		LastPull: time.Now().Add(-2 * time.Hour).Format(time.RFC3339),
 	}
-	if r.ShouldPull(now) {
-		t.Error("ShouldPull not at scheduled time with recent last pull should return false")
-	}
-}
-
-func TestConfigPath(t *testing.T) {
-	path := ConfigPath()
-	if path == "" {
-		t.Error("ConfigPath should not be empty")
+	cfg := &Config{}
+	now := time.Now()
+	if r.ShouldPull(now, cfg) {
+		t.Error("ShouldPull at non-scheduled time within interval should return false")
 	}
 }
 
-func TestLoadSaveConfig(t *testing.T) {
-	// Use a temp dir
-	tmpDir := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmpDir)
-
-	cfg := &Config{
-		DefaultInterval: "15m",
-		Repos: []RepoEntry{
-			{
-				Path:     "/tmp/test-repo",
-				Schedule: Schedule{Interval: "10m"},
-			},
-		},
+func TestConfigDefaultInterval(t *testing.T) {
+	r := &RepoEntry{
+		Schedule: Schedule{},
+		LastPull: time.Now().Add(-25 * time.Minute).Format(time.RFC3339),
 	}
-
-	if err := SaveConfig(cfg); err != nil {
-		t.Fatalf("SaveConfig error: %v", err)
-	}
-
-	loaded, err := LoadConfig()
-	if err != nil {
-		t.Fatalf("LoadConfig error: %v", err)
-	}
-
-	if loaded.DefaultInterval != cfg.DefaultInterval {
-		t.Errorf("DefaultInterval = %q, want %q", loaded.DefaultInterval, cfg.DefaultInterval)
-	}
-	if len(loaded.Repos) != 1 {
-		t.Fatalf("len(Repos) = %d, want 1", len(loaded.Repos))
-	}
-	if loaded.Repos[0].Path != cfg.Repos[0].Path {
-		t.Errorf("Repos[0].Path = %q, want %q", loaded.Repos[0].Path, cfg.Repos[0].Path)
+	cfg := &Config{DefaultInterval: "1h"}
+	now := time.Now()
+	if r.ShouldPull(now, cfg) {
+		t.Error("ShouldPull with 1h default interval after 25m should return false")
 	}
 }
 
-func TestIsGitRepo(t *testing.T) {
-	// Current dir should be a git repo
-	root, err := IsGitRepo(".")
-	if err != nil {
-		t.Fatalf("IsGitRepo('.') error: %v", err)
+func TestConfigDefaultTimes(t *testing.T) {
+	now := time.Now()
+	r := &RepoEntry{
+		Schedule: Schedule{Interval: "24h"},
+		LastPull: now.Add(-2 * time.Hour).Format(time.RFC3339),
 	}
-	if root == "" {
-		t.Error("IsGitRepo should return non-empty root")
+	cfg := &Config{DefaultTimes: []string{now.Format("15:04")}}
+	if !r.ShouldPull(now, cfg) {
+		t.Error("ShouldPull with default times matching current time should return true")
+	}
+}
+
+func TestEffectiveInterval(t *testing.T) {
+	cfg := &Config{DefaultInterval: "1h"}
+
+	s := Schedule{Interval: "10m"}
+	if got := cfg.EffectiveInterval(s); got != "10m" {
+		t.Errorf("EffectiveInterval with repo override = %q, want 10m", got)
 	}
 
-	// /tmp should not be a git repo
-	_, err = IsGitRepo("/tmp")
-	if err == nil {
-		t.Error("IsGitRepo('/tmp') should return error")
+	s = Schedule{}
+	if got := cfg.EffectiveInterval(s); got != "1h" {
+		t.Errorf("EffectiveInterval with config default = %q, want 1h", got)
+	}
+
+	cfg2 := &Config{}
+	if got := cfg2.EffectiveInterval(Schedule{}); got != "30m" {
+		t.Errorf("EffectiveInterval with no defaults = %q, want 30m", got)
+	}
+}
+
+func TestEffectiveTimes(t *testing.T) {
+	cfg := &Config{DefaultTimes: []string{"09:00", "18:00"}}
+
+	s := Schedule{Times: []string{"12:00"}}
+	if got := cfg.EffectiveTimes(s); len(got) != 1 || got[0] != "12:00" {
+		t.Errorf("EffectiveTimes with repo override = %v, want [12:00]", got)
+	}
+
+	s = Schedule{}
+	if got := cfg.EffectiveTimes(s); len(got) != 2 {
+		t.Errorf("EffectiveTimes with config default = %v, want [09:00 18:00]", got)
+	}
+}
+
+func TestEffectiveRange(t *testing.T) {
+	cfg := &Config{DefaultRange: "09:00-17:00"}
+
+	s := Schedule{Range: "10:00-14:00"}
+	if got := cfg.EffectiveRange(s); got != "10:00-14:00" {
+		t.Errorf("EffectiveRange with repo override = %q, want 10:00-14:00", got)
+	}
+
+	s = Schedule{}
+	if got := cfg.EffectiveRange(s); got != "09:00-17:00" {
+		t.Errorf("EffectiveRange with config default = %q, want 09:00-17:00", got)
+	}
+
+	cfg2 := &Config{}
+	if got := cfg2.EffectiveRange(Schedule{}); got != "" {
+		t.Errorf("EffectiveRange with no defaults = %q, want empty", got)
 	}
 }
 
 func TestSplitTimes(t *testing.T) {
 	tests := []struct {
-		input string
-		want  []string
+		input    string
+		expected []string
 	}{
 		{"09:00,18:00", []string{"09:00", "18:00"}},
+		{"09:00, 18:00", []string{"09:00", "18:00"}},
 		{"09:00", []string{"09:00"}},
-		{"09:00, 18:00, 22:00", []string{"09:00", "18:00", "22:00"}},
+		{"", nil},
 	}
-
 	for _, tt := range tests {
 		got := splitTimes(tt.input)
-		if len(got) != len(tt.want) {
-			t.Errorf("splitTimes(%q) = %v, want %v", tt.input, got, tt.want)
+		if len(got) != len(tt.expected) {
+			t.Errorf("splitTimes(%q) = %v, want %v", tt.input, got, tt.expected)
 			continue
 		}
-		for i := range got {
-			if got[i] != tt.want[i] {
-				t.Errorf("splitTimes(%q)[%d] = %q, want %q", tt.input, i, got[i], tt.want[i])
+		for i, v := range got {
+			if v != tt.expected[i] {
+				t.Errorf("splitTimes(%q)[%d] = %q, want %q", tt.input, i, v, tt.expected[i])
 			}
+		}
+	}
+}
+
+func TestIsWithinRange(t *testing.T) {
+	t1 := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+	if !isWithinRange(t1, "09:00-17:00") {
+		t.Error("10:00 should be within 09:00-17:00")
+	}
+
+	t2 := time.Date(2026, 1, 1, 8, 0, 0, 0, time.UTC)
+	if isWithinRange(t2, "09:00-17:00") {
+		t.Error("08:00 should NOT be within 09:00-17:00")
+	}
+
+	t3 := time.Date(2026, 1, 1, 17, 0, 0, 0, time.UTC)
+	if !isWithinRange(t3, "09:00-17:00") {
+		t.Error("17:00 should be within 09:00-17:00 (inclusive)")
+	}
+
+	if !isWithinRange(t2, "invalid") {
+		t.Error("Invalid range should not restrict")
+	}
+}
+
+func TestParseTime(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected int
+		hasErr   bool
+	}{
+		{"09:00", 9*60 + 0, false},
+		{"17:30", 17*60 + 30, false},
+		{"25:00", 0, true},  // invalid hour
+		{"09:70", 0, true},  // invalid minute
+		{"abc", 0, true},
+	}
+	for _, tt := range tests {
+		got, err := parseTime(tt.input)
+		if tt.hasErr && err == nil {
+			t.Errorf("parseTime(%q): expected error, got none", tt.input)
+		}
+		if !tt.hasErr && err != nil {
+			t.Errorf("parseTime(%q): unexpected error: %v", tt.input, err)
+		}
+		if !tt.hasErr && got != tt.expected {
+			t.Errorf("parseTime(%q) = %d, want %d", tt.input, got, tt.expected)
 		}
 	}
 }

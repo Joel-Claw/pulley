@@ -11,7 +11,39 @@ import (
 // Config holds all pulley configuration.
 type Config struct {
 	DefaultInterval string     `json:"defaultInterval,omitempty"`
+	DefaultTimes    []string   `json:"defaultTimes,omitempty"`
+	DefaultRange    string     `json:"defaultRange,omitempty"` // e.g. "09:00-17:00" means pull only within this time window
 	Repos           []RepoEntry `json:"repos"`
+}
+
+// EffectiveInterval returns the interval for a repo, falling back to the config default then "30m".
+func (c *Config) EffectiveInterval(s Schedule) string {
+	if s.Interval != "" {
+		return s.Interval
+	}
+	if c.DefaultInterval != "" {
+		return c.DefaultInterval
+	}
+	return "30m"
+}
+
+// EffectiveTimes returns the times for a repo, falling back to the config default.
+func (c *Config) EffectiveTimes(s Schedule) []string {
+	if len(s.Times) > 0 {
+		return s.Times
+	}
+	if len(c.DefaultTimes) > 0 {
+		return c.DefaultTimes
+	}
+	return nil
+}
+
+// EffectiveRange returns the time range for a repo, falling back to the config default.
+func (c *Config) EffectiveRange(s Schedule) string {
+	if s.Range != "" {
+		return s.Range
+	}
+	return c.DefaultRange
 }
 
 // RepoEntry represents a registered git repository.
@@ -25,6 +57,7 @@ type RepoEntry struct {
 type Schedule struct {
 	Interval string   `json:"interval,omitempty"`
 	Times    []string `json:"times,omitempty"`
+	Range    string   `json:"range,omitempty"` // e.g. "09:00-17:00"
 }
 
 // ParseInterval parses a duration string like "15m", "2h", "30m" into a time.Duration.
@@ -36,10 +69,21 @@ func (s Schedule) ParseInterval() (time.Duration, error) {
 	return time.ParseDuration(raw)
 }
 
-// ShouldPull returns true if the repo should be pulled based on its schedule
-// and the time since last pull.
-func (r *RepoEntry) ShouldPull(now time.Time) bool {
-	interval, err := r.Schedule.ParseInterval()
+// ShouldPull returns true if the repo should be pulled based on its schedule,
+// the time since last pull, and any time range constraints.
+func (r *RepoEntry) ShouldPull(now time.Time, cfg *Config) bool {
+	intervalStr := cfg.EffectiveInterval(r.Schedule)
+	times := cfg.EffectiveTimes(r.Schedule)
+	activeRange := cfg.EffectiveRange(r.Schedule)
+
+	// If a time range is set, only pull within that range
+	if activeRange != "" {
+		if !isWithinRange(now, activeRange) {
+			return false
+		}
+	}
+
+	interval, err := time.ParseDuration(intervalStr)
 	if err != nil {
 		interval = 30 * time.Minute
 	}
@@ -49,15 +93,15 @@ func (r *RepoEntry) ShouldPull(now time.Time) bool {
 		last, err := time.Parse(time.RFC3339, r.LastPull)
 		if err == nil && now.Sub(last) < interval {
 			// Not enough time has passed; but check times-based schedule too
-			return r.shouldPullAtTime(now)
+			return matchesTimes(now, times)
 		}
 	}
 
 	// No last pull or interval elapsed
 	if r.LastPull == "" {
 		// If times-based schedule, check if we're at a scheduled time
-		if len(r.Schedule.Times) > 0 {
-			return r.shouldPullAtTime(now)
+		if len(times) > 0 {
+			return matchesTimes(now, times)
 		}
 		return true
 	}
@@ -66,18 +110,67 @@ func (r *RepoEntry) ShouldPull(now time.Time) bool {
 	return true
 }
 
-// shouldPullAtTime checks if current time matches any scheduled time (within 1 minute window).
-func (r *RepoEntry) shouldPullAtTime(now time.Time) bool {
-	if len(r.Schedule.Times) == 0 {
+// matchesTimes checks if current time matches any scheduled time (within 1 minute window).
+func matchesTimes(now time.Time, times []string) bool {
+	if len(times) == 0 {
 		return false
 	}
 	nowStr := now.Format("15:04")
-	for _, t := range r.Schedule.Times {
+	for _, t := range times {
 		if t == nowStr {
 			return true
 		}
 	}
 	return false
+}
+
+// isWithinRange checks if the current time is within a time range like "09:00-17:00".
+func isWithinRange(now time.Time, rng string) bool {
+	parts := splitRange(rng)
+	if len(parts) != 2 {
+		return true // invalid range = no restriction
+	}
+	start, errStart := parseTime(parts[0])
+	end, errEnd := parseTime(parts[1])
+	if errStart != nil || errEnd != nil {
+		return true // invalid = no restriction
+	}
+	nowMins := now.Hour()*60 + now.Minute()
+	return nowMins >= start && nowMins <= end
+}
+
+// parseTime parses "HH:MM" into minutes since midnight.
+func parseTime(s string) (int, error) {
+	s = trimSpace(s)
+	var h, m int
+	n, err := fmt.Sscanf(s, "%d:%d", &h, &m)
+	if err != nil || n != 2 {
+		return 0, fmt.Errorf("invalid time: %s", s)
+	}
+	if h < 0 || h > 23 || m < 0 || m > 59 {
+		return 0, fmt.Errorf("invalid time: %s", s)
+	}
+	return h*60 + m, nil
+}
+
+// splitRange splits a range string like "09:00-17:00" into ["09:00", "17:00"].
+func splitRange(rng string) []string {
+	for i, c := range rng {
+		if c == '-' {
+			return []string{rng[:i], rng[i+1:]}
+		}
+	}
+	return []string{rng}
+}
+
+func trimSpace(s string) string {
+	result := make([]byte, 0, len(s))
+	for _, c := range s {
+		if c != ' ' && c != '\t' {
+			result = append(result, byte(c))
+		}
+	}
+	return string(result)
 }
 
 // ConfigPath returns the path to the config file.
@@ -98,7 +191,7 @@ func LoadConfig() (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return &Config{DefaultInterval: "30m"}, nil
+			return &Config{}, nil
 		}
 		return nil, fmt.Errorf("read config: %w", err)
 	}

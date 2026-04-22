@@ -91,6 +91,54 @@ else
     fail "--at times not shown"
 fi
 
+# ── Test: add with --range ──────────────────────────────────────────────────
+echo ""
+echo "Test: add with --range"
+TESTREPO3="/home/testuser/test-repo3"
+git init "$TESTREPO3"
+cd "$TESTREPO3"
+git commit --allow-empty -m "initial"
+
+pulley add "$TESTREPO3" --range "09:00-17:00"
+LISTOUT3=$(pulley list)
+if echo "$LISTOUT3" | grep -q "09:00-17:00"; then
+    ok "--range stored correctly"
+else
+    fail "--range not shown"
+fi
+
+# ── Test: config set ──────────────────────────────────────────────────────
+echo ""
+echo "Test: config set"
+pulley config set --interval 15m --range "08:00-22:00"
+CONFIG_OUT=$(pulley config)
+if echo "$CONFIG_OUT" | grep -q "15m"; then
+    ok "config shows default interval"
+else
+    fail "config missing default interval"
+fi
+if echo "$CONFIG_OUT" | grep -q "08:00-22:00"; then
+    ok "config shows default range"
+else
+    fail "config missing default range"
+fi
+
+# ── Test: repo inherits defaults ──────────────────────────────────────────
+echo ""
+echo "Test: repo inherits defaults"
+TESTREPO4="/home/testuser/test-repo4"
+git init "$TESTREPO4"
+cd "$TESTREPO4"
+git commit --allow-empty -m "initial"
+
+pulley add "$TESTREPO4"
+LISTOUT4=$(pulley list)
+if echo "$LISTOUT4" | grep -q "15m"; then
+    ok "repo inherits default interval"
+else
+    fail "repo did not inherit default interval"
+fi
+
 # ── Test: add non-git directory ────────────────────────────────────────────
 echo ""
 echo "Test: add non-git directory"
@@ -228,6 +276,8 @@ fi
 echo ""
 echo "Test: empty list after removing all"
 pulley remove "$TESTREPO2" 2>&1 || true
+pulley remove "$TESTREPO3" 2>&1 || true
+pulley remove "$TESTREPO4" 2>&1 || true
 pulley remove "$CLONE" 2>&1 || true
 EMPTY_LIST=$(pulley list)
 if echo "$EMPTY_LIST" | grep -q "No repos"; then
