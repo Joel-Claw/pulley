@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Config holds all autopull configuration.
+// Config holds all pulley configuration.
 type Config struct {
 	DefaultInterval string     `json:"defaultInterval,omitempty"`
 	Repos           []RepoEntry `json:"repos"`
@@ -83,13 +83,13 @@ func (r *RepoEntry) shouldPullAtTime(now time.Time) bool {
 // ConfigPath returns the path to the config file.
 func ConfigPath() string {
 	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-		return filepath.Join(xdg, "autopull", "config.json")
+		return filepath.Join(xdg, "pulley", "config.json")
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		home = "/tmp"
 	}
-	return filepath.Join(home, ".config", "autopull", "config.json")
+	return filepath.Join(home, ".config", "pulley", "config.json")
 }
 
 // LoadConfig reads the config from disk, creating defaults if missing.

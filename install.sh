@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# autopull universal installer/updater
+# pulley universal installer/updater
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/Joel-Claw/autopull/main/install.sh | bash
-#   curl -fsSL https://raw.githubusercontent.com/Joel-Claw/autopull/main/install.sh | bash -s -- --uninstall
+#   curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | bash -s -- --uninstall
 #
 # Options:
-#   --uninstall     Remove autopull
+#   --uninstall     Remove pulley
 #   --version TAG   Install specific version (default: latest)
 set -euo pipefail
 
-REPO="Joel-Claw/autopull"
-BINARY="/usr/local/bin/autopull"
-SERVICE_FILE="/etc/systemd/system/autopull.service"
+REPO="Joel-Claw/pulley"
+BINARY="/usr/local/bin/pulley"
+SERVICE_FILE="/etc/systemd/system/pulley.service"
 VERSION="${1:-latest}"
 UNINSTALL=false
 
@@ -30,19 +30,19 @@ GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 NC='\033[0m'
 
-info()  { echo -e "${GREEN}[autopull]${NC} $*"; }
-warn()  { echo -e "${YELLOW}[autopull]${NC} $*"; }
-error() { echo -e "${RED}[autopull]${NC} $*" >&2; exit 1; }
+info()  { echo -e "${GREEN}[pulley]${NC} $*"; }
+warn()  { echo -e "${YELLOW}[pulley]${NC} $*"; }
+error() { echo -e "${RED}[pulley]${NC} $*" >&2; exit 1; }
 
 # ── Uninstall ──────────────────────────────────────────────────────────────
 
 if [ "$UNINSTALL" = true ]; then
-    echo "Uninstalling autopull..."
-    systemctl stop autopull 2>/dev/null || true
-    systemctl disable autopull 2>/dev/null || true
+    echo "Uninstalling pulley..."
+    systemctl stop pulley 2>/dev/null || true
+    systemctl disable pulley 2>/dev/null || true
     rm -f "$BINARY" "$SERVICE_FILE"
     systemctl daemon-reload 2>/dev/null || true
-    info "Uninstalled autopull"
+    info "Uninstalled pulley"
     exit 0
 fi
 
@@ -108,9 +108,9 @@ install_deps() {
 # ── Check if already installed (update mode) ───────────────────────────────
 
 INSTALLED_VERSION=""
-if command -v autopull &>/dev/null; then
-    INSTALLED_VERSION=$(autopull --version 2>/dev/null || echo "unknown")
-    info "autopull already installed ($INSTALLED_VERSION), updating..."
+if command -v pulley &>/dev/null; then
+    INSTALLED_VERSION=$(pulley --version 2>/dev/null || echo "unknown")
+    info "pulley already installed ($INSTALLED_VERSION), updating..."
 fi
 
 # ── Install deps ───────────────────────────────────────────────────────────
@@ -135,21 +135,21 @@ else
     CLONE_BRANCH="$VERSION"
 fi
 
-info "Downloading autopull (${VERSION})..."
-git clone --depth 1 --branch "$CLONE_BRANCH" "$CLONE_URL" "$TMPDIR/autopull" 2>/dev/null || {
+info "Downloading pulley (${VERSION})..."
+git clone --depth 1 --branch "$CLONE_BRANCH" "$CLONE_URL" "$TMPDIR/pulley" 2>/dev/null || {
     # Branch might be a tag
-    git clone --depth 1 "$CLONE_URL" "$TMPDIR/autopull" 2>/dev/null && \
-    cd "$TMPDIR/autopull" && git checkout "$VERSION" 2>/dev/null
+    git clone --depth 1 "$CLONE_URL" "$TMPDIR/pulley" 2>/dev/null && \
+    cd "$TMPDIR/pulley" && git checkout "$VERSION" 2>/dev/null
 }
 
-cd "$TMPDIR/autopull"
+cd "$TMPDIR/pulley"
 
 info "Building..."
-go build -ldflags="-s -w" -o autopull ./cmd/autopull
+go build -ldflags="-s -w" -o pulley ./cmd/pulley
 
 # ── Install binary ──────────────────────────────────────────────────────────
 
-install -m 755 autopull "$BINARY"
+install -m 755 pulley "$BINARY"
 info "Installed: $BINARY"
 
 # ── Install systemd service ─────────────────────────────────────────────────
@@ -164,13 +164,13 @@ if [ -d /etc/systemd/system ]; then
 
     cat > "$SERVICE_FILE" <<'EOF'
 [Unit]
-Description=AutoPull - Automatic Git Pull Daemon
+Description=Pulley - Automatic Git Pull Daemon
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/autopull daemon
+ExecStart=/usr/local/bin/pulley daemon
 Restart=on-failure
 RestartSec=30
 
@@ -189,12 +189,12 @@ EOF
     info "Installed: $SERVICE_FILE"
 
     # Enable if not already enabled
-    if ! systemctl is-enabled autopull &>/dev/null; then
-        systemctl enable autopull
-        info "Service enabled (not started). Add repos first, then: systemctl start autopull"
+    if ! systemctl is-enabled pulley &>/dev/null; then
+        systemctl enable pulley
+        info "Service enabled (not started). Add repos first, then: systemctl start pulley"
     else
         # Restart if it was already running (update)
-        systemctl is-active autopull &>/dev/null && systemctl restart autopull
+        systemctl is-active pulley &>/dev/null && systemctl restart pulley
         info "Service restarted"
     fi
 fi
@@ -202,16 +202,16 @@ fi
 # ── Done ────────────────────────────────────────────────────────────────────
 
 echo ""
-info "Done! $(autopull 2>&1 | head -1 || true)"
+info "Done! $(pulley 2>&1 | head -1 || true)"
 echo ""
 echo "Quick start:"
-echo "  autopull add /path/to/repo"
-echo "  autopull add /path/to/repo --interval 15m"
-echo "  autopull add /path/to/repo --at \"09:00,18:00\""
-echo "  sudo systemctl start autopull"
+echo "  pulley add /path/to/repo"
+echo "  pulley add /path/to/repo --interval 15m"
+echo "  pulley add /path/to/repo --at \"09:00,18:00\""
+echo "  sudo systemctl start pulley"
 echo ""
 echo "Update anytime:"
-echo "  curl -fsSL https://raw.githubusercontent.com/Joel-Claw/autopull/main/install.sh | sudo bash"
+echo "  curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | sudo bash"
 echo ""
 echo "Uninstall:"
-echo "  curl -fsSL https://raw.githubusercontent.com/Joel-Claw/autopull/main/install.sh | sudo bash -s -- --uninstall"
+echo "  curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | sudo bash -s -- --uninstall"

@@ -1,4 +1,4 @@
-# AutoPull
+# Pulley
 
 A lightweight Linux service that automatically `git pull`s registered repositories on a configurable schedule. Set it up once and your repos stay in sync without thinking about it.
 
@@ -22,7 +22,7 @@ You have multiple git repos on a machine, some you want updated every 15 minutes
 ### One-line install (recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Joel-Claw/autopull/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | sudo bash
 ```
 
 This works on Debian, Ubuntu, Arch, Fedora, openSUSE, Alpine, NixOS, and any Linux with Go and git. It detects your distro, installs dependencies, builds from source, and sets up the systemd service.
@@ -30,7 +30,7 @@ This works on Debian, Ubuntu, Arch, Fedora, openSUSE, Alpine, NixOS, and any Lin
 To **update** an existing installation:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Joel-Claw/autopull/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | sudo bash
 ```
 
 Same command. It detects the existing install, rebuilds, and restarts the service.
@@ -38,20 +38,20 @@ Same command. It detects the existing install, rebuilds, and restarts the servic
 To **uninstall**:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Joel-Claw/autopull/main/install.sh | sudo bash -s -- --uninstall
+curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | sudo bash -s -- --uninstall
 ```
 
 To install a **specific version**:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Joel-Claw/autopull/main/install.sh | sudo bash -s -- --version=v0.1.0
+curl -fsSL https://raw.githubusercontent.com/Joel-Claw/pulley/main/install.sh | sudo bash -s -- --version=v0.1.0
 ```
 
 ### Build and install
 
 ```bash
-git clone https://github.com/Joel-Claw/autopull.git
-cd autopull
+git clone https://github.com/Joel-Claw/pulley.git
+cd pulley
 make
 sudo make install
 ```
@@ -73,19 +73,19 @@ sudo ./install/install-arch.sh
 
 ```bash
 # Add a repo (defaults to every 30 minutes)
-autopull add /path/to/my-project
+pulley add /path/to/my-project
 
 # Pull every 15 minutes
-autopull add /path/to/my-project --interval 15m
+pulley add /path/to/my-project --interval 15m
 
 # Pull at specific times
-autopull add /path/to/my-project --at "09:00,18:00"
+pulley add /path/to/my-project --at "09:00,18:00"
 
 # Both interval and specific times
-autopull add /path/to/my-project --interval 2h --at "09:00,18:00"
+pulley add /path/to/my-project --interval 2h --at "09:00,18:00"
 
 # Start the daemon
-sudo systemctl start autopull
+sudo systemctl start pulley
 ```
 
 ## Usage
@@ -94,12 +94,12 @@ sudo systemctl start autopull
 
 | Command | Description |
 |---------|-------------|
-| `autopull add [path] [flags]` | Register a git repo for auto-pulling |
-| `autopull remove <path>` | Unregister a repo |
-| `autopull list` | List all registered repos and their schedules |
-| `autopull pull [path]` | Pull all repos (or a specific one) right now |
-| `autopull daemon` | Run as foreground daemon (for systemd) |
-| `autopull help` | Show usage information |
+| `pulley add [path] [flags]` | Register a git repo for auto-pulling |
+| `pulley remove <path>` | Unregister a repo |
+| `pulley list` | List all registered repos and their schedules |
+| `pulley pull [path]` | Pull all repos (or a specific one) right now |
+| `pulley daemon` | Run as foreground daemon (for systemd) |
+| `pulley help` | Show usage information |
 
 ### Add flags
 
@@ -114,33 +114,33 @@ If no flags are given, the default interval is **30 minutes**.
 
 ```bash
 # Add current directory
-autopull add
+pulley add
 
 # Add with 10-minute interval
-autopull add /home/user/my-app --interval 10m
+pulley add /home/user/my-app --interval 10m
 
 # Pull three times a day
-autopull add /home/user/docs --at "08:00,12:00,18:00"
+pulley add /home/user/docs --at "08:00,12:00,18:00"
 
 # Mix interval + specific times
-autopull add /home/user/monitoring --interval 5m --at "00:00"
+pulley add /home/user/monitoring --interval 5m --at "00:00"
 
 # Remove a repo
-autopull remove /home/user/my-app
+pulley remove /home/user/my-app
 
 # Pull everything now
-autopull pull
+pulley pull
 
 # Pull a specific repo now
-autopull pull /home/user/my-app
+pulley pull /home/user/my-app
 
 # See what's registered
-autopull list
+pulley list
 ```
 
 ## Configuration
 
-Config is stored at `~/.config/autopull/config.json` (respects `$XDG_CONFIG_HOME`).
+Config is stored at `~/.config/pulley/config.json` (respects `$XDG_CONFIG_HOME`).
 
 You can edit it directly or use the CLI. The daemon reloads the config every minute, so changes are picked up without restarting.
 
@@ -197,11 +197,11 @@ The daemon checks every 60 seconds:
 ### From source (any Linux)
 
 ```bash
-git clone https://github.com/Joel-Claw/autopull.git
-cd autopull
+git clone https://github.com/Joel-Claw/pulley.git
+cd pulley
 make
 sudo make install
-sudo systemctl enable --now autopull
+sudo systemctl enable --now pulley
 ```
 
 Requires: Go 1.23+, git, systemd
@@ -214,9 +214,9 @@ sudo ./install/install-debian.sh
 
 This script:
 1. Installs Go and git if not present (via apt)
-2. Builds autopull with optimized flags
-3. Installs the binary to `/usr/local/bin/autopull`
-4. Installs the systemd service to `/etc/systemd/system/autopull.service`
+2. Builds pulley with optimized flags
+3. Installs the binary to `/usr/local/bin/pulley`
+4. Installs the systemd service to `/etc/systemd/system/pulley.service`
 5. Sets the service user to the user who ran sudo
 6. Enables the service (does not start it, add repos first)
 
@@ -233,7 +233,7 @@ Same as Debian installer but uses pacman for dependencies.
 #### Option 1: nix profile install (any Nix system)
 
 ```bash
-nix profile install github:Joel-Claw/autopull
+nix profile install github:Joel-Claw/pulley
 ```
 
 #### Option 2: NixOS module
@@ -242,12 +242,12 @@ Add to your `configuration.nix`:
 
 ```nix
 {
-  imports = [ /path/to/autopull/install/flake.nix#nixosModules.autopull ];
+  imports = [ /path/to/pulley/install/flake.nix#nixosModules.pulley ];
 
-  services.autopull = {
+  services.pulley = {
     enable = true;
     user = "youruser";
-    configPath = "/home/youruser/.config/autopull/config.json";
+    configPath = "/home/youruser/.config/pulley/config.json";
   };
 }
 ```
@@ -261,7 +261,7 @@ sudo nixos-rebuild switch
 #### Option 3: Run without installing
 
 ```bash
-nix run github:Joel-Claw/autopull -- add /path/to/repo
+nix run github:Joel-Claw/pulley -- add /path/to/repo
 ```
 
 ### Manual systemd setup
@@ -270,12 +270,12 @@ If you built from source without the Makefile:
 
 ```bash
 # Copy binary
-sudo cp autopull /usr/local/bin/
+sudo cp pulley /usr/local/bin/
 
 # Copy and edit service file
-sudo cp install/autopull.service /etc/systemd/system/
+sudo cp install/pulley.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now autopull
+sudo systemctl enable --now pulley
 ```
 
 Edit the service file to set `User=` and `Group=` to match your user account.
@@ -292,24 +292,24 @@ The daemon runs as a systemd service. Key behaviors:
 
 ```bash
 # Start
-sudo systemctl start autopull
+sudo systemctl start pulley
 
 # Stop
-sudo systemctl stop autopull
+sudo systemctl stop pulley
 
 # Restart (after manual config changes if you don't want to wait)
-sudo systemctl restart autopull
+sudo systemctl restart pulley
 
 # Check status
-systemctl status autopull
+systemctl status pulley
 
 # View logs
-journalctl -u autopull -f
+journalctl -u pulley -f
 ```
 
 ## How it works
 
-1. **Registration**: `autopull add` verifies the path is a git repo using `git rev-parse --show-toplevel`, then stores the absolute path and schedule in `config.json`
+1. **Registration**: `pulley add` verifies the path is a git repo using `git rev-parse --show-toplevel`, then stores the absolute path and schedule in `config.json`
 2. **Daemon loop**: Every 60 seconds, the daemon:
    - Reloads `config.json` (so you can edit it live)
    - Checks each repo against its schedule
@@ -320,15 +320,15 @@ journalctl -u autopull -f
 ## Project structure
 
 ```
-autopull/
+pulley/
 ├── cmd/
-│   └── autopull/
+│   └── pulley/
 │       ├── main.go        # CLI commands + daemon loop
 │       ├── config.go      # Config types, load/save, scheduling logic
 │       ├── git.go         # Git operations (pull, status, verify)
 │       └── main_test.go   # Tests
 ├── install/
-│   ├── autopull.service   # systemd unit file
+│   ├── pulley.service   # systemd unit file
 │   ├── install-arch.sh    # Arch Linux installer
 │   ├── install-debian.sh  # Debian/Ubuntu installer
 │   ├── install-nix.sh     # Nix/NixOS installer

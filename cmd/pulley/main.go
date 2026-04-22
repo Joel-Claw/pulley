@@ -28,7 +28,7 @@ func main() {
 	case "daemon":
 		cmdDaemon()
 	case "version", "-v", "--version":
-		fmt.Printf("autopull %s\n", version)
+		fmt.Printf("pulley %s\n", version)
 	case "help", "-h", "--help":
 		printUsage()
 	default:
@@ -39,15 +39,15 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Println(`autopull - automatic git pull daemon
+	fmt.Println(`pulley - automatic git pull daemon
 
 Usage:
-  autopull add [path] [--interval <dur>] [--at <times>]   Register a repo
-  autopull remove <path>                                    Unregister a repo
-  autopull list                                             List registered repos
-  autopull pull [path]                                      Pull repos now
-  autopull daemon                                           Run as daemon (foreground)
-  autopull version                                          Show version
+  pulley add [path] [--interval <dur>] [--at <times>]   Register a repo
+  pulley remove <path>                                    Unregister a repo
+  pulley list                                             List registered repos
+  pulley pull [path]                                      Pull repos now
+  pulley daemon                                           Run as daemon (foreground)
+  pulley version                                          Show version
 
 Schedule flags:
   --interval 15m     Pull every 15 minutes (default: 30m)
@@ -140,7 +140,7 @@ func cmdAdd(args []string) {
 
 func cmdRemove(args []string) {
 	if len(args) < 1 {
-		fmt.Fprintln(os.Stderr, "usage: autopull remove <path>")
+		fmt.Fprintln(os.Stderr, "usage: pulley remove <path>")
 		os.Exit(1)
 	}
 
@@ -188,7 +188,7 @@ func cmdList() {
 	}
 
 	if len(cfg.Repos) == 0 {
-		fmt.Println("No repos registered. Use 'autopull add' to add one.")
+		fmt.Println("No repos registered. Use 'pulley add' to add one.")
 		return
 	}
 
@@ -254,7 +254,7 @@ func cmdDaemon() {
 		log.Fatalf("error loading config: %v", err)
 	}
 
-	log.Println("autopull daemon started")
+	log.Println("pulley daemon started")
 	log.Printf("watching %d repo(s)", len(cfg.Repos))
 
 	// Check every minute

@@ -7,7 +7,7 @@ FAIL=0
 ok()   { echo "  ✓ $1"; PASS=$((PASS+1)); }
 fail() { echo "  ✗ $1"; FAIL=$((FAIL+1)); }
 
-echo "=== autopull Docker integration test ==="
+echo "=== pulley Docker integration test ==="
 echo ""
 
 # Suppress git hints
@@ -18,19 +18,19 @@ git config --global user.email "test@test.com"
 
 # ── Build verification ──────────────────────────────────────────────────────
 echo "Build verification:"
-if command -v autopull &>/dev/null; then
-    ok "autopull binary exists"
+if command -v pulley &>/dev/null; then
+    ok "pulley binary exists"
 else
-    fail "autopull binary not found in PATH"
+    fail "pulley binary not found in PATH"
 fi
 
-if autopull version &>/dev/null; then
-    ok "autopull version works"
+if pulley version &>/dev/null; then
+    ok "pulley version works"
 else
-    fail "autopull version failed"
+    fail "pulley version failed"
 fi
 
-VER=$(autopull version 2>&1)
+VER=$(pulley version 2>&1)
 echo "  Version: $VER"
 
 # ── Test: add repo ────────────────────────────────────────────────────────
@@ -42,8 +42,8 @@ git init "$TESTREPO"
 cd "$TESTREPO"
 git commit --allow-empty -m "initial"
 
-autopull add "$TESTREPO" --interval 10m
-LISTOUT=$(autopull list)
+pulley add "$TESTREPO" --interval 10m
+LISTOUT=$(pulley list)
 if echo "$LISTOUT" | grep -q "test-repo"; then
     ok "repo appears in list after add"
 else
@@ -53,7 +53,7 @@ fi
 # ── Test: add duplicate ───────────────────────────────────────────────────
 echo ""
 echo "Test: add duplicate repo"
-ADD_OUT=$(autopull add "$TESTREPO" 2>&1) && true
+ADD_OUT=$(pulley add "$TESTREPO" 2>&1) && true
 if echo "$ADD_OUT" | grep -q "already registered"; then
     ok "duplicate add rejected"
 else
@@ -83,8 +83,8 @@ git init "$TESTREPO2"
 cd "$TESTREPO2"
 git commit --allow-empty -m "initial"
 
-autopull add "$TESTREPO2" --at "09:00,18:00"
-LISTOUT2=$(autopull list)
+pulley add "$TESTREPO2" --at "09:00,18:00"
+LISTOUT2=$(pulley list)
 if echo "$LISTOUT2" | grep -q "09:00"; then
     ok "--at times stored correctly"
 else
@@ -96,7 +96,7 @@ echo ""
 echo "Test: add non-git directory"
 NOTGIT="/home/testuser/not-a-repo"
 mkdir -p "$NOTGIT"
-ADD_NONGIT=$(autopull add "$NOTGIT" 2>&1) && NONGIT_RC=$? || NONGIT_RC=$?
+ADD_NONGIT=$(pulley add "$NOTGIT" 2>&1) && NONGIT_RC=$? || NONGIT_RC=$?
 if [ "$NONGIT_RC" -ne 0 ]; then
     ok "non-git directory rejected"
 else
@@ -106,7 +106,7 @@ fi
 # ── Test: pull with no remote ──────────────────────────────────────────────
 echo ""
 echo "Test: pull (no remote)"
-PULL_OUT=$(autopull pull "$TESTREPO" 2>&1) && true
+PULL_OUT=$(pulley pull "$TESTREPO" 2>&1) && true
 if echo "$PULL_OUT" | grep -q "failed"; then
     ok "pull reports failure on repo with no remote"
 else
@@ -132,7 +132,7 @@ git commit --allow-empty -m "first commit"
 git push origin main
 
 # Register the clone
-autopull add "$CLONE" --interval 5m
+pulley add "$CLONE" --interval 5m
 
 # Push a new commit from another clone
 CLONE2="$WORKDIR/clone2"
@@ -142,7 +142,7 @@ git commit --allow-empty -m "second commit"
 git push origin main
 
 # Now pull from the first clone
-PULL2=$(autopull pull "$CLONE" 2>&1) && true
+PULL2=$(pulley pull "$CLONE" 2>&1) && true
 if echo "$PULL2" | grep -q "Already up to date\|Fast-forward"; then
     ok "pull works with remote"
 else
@@ -158,8 +158,8 @@ fi
 # ── Test: remove ──────────────────────────────────────────────────────────
 echo ""
 echo "Test: remove"
-autopull remove "$TESTREPO"
-if ! autopull list 2>&1 | grep -q "test-repo"; then
+pulley remove "$TESTREPO"
+if ! pulley list 2>&1 | grep -q "test-repo"; then
     ok "repo removed from list"
 else
     fail "repo still in list after remove"
@@ -168,7 +168,7 @@ fi
 # ── Test: config file ──────────────────────────────────────────────────────
 echo ""
 echo "Test: config file"
-CFGPATH="$HOME/.config/autopull/config.json"
+CFGPATH="$HOME/.config/pulley/config.json"
 if [ -f "$CFGPATH" ]; then
     ok "config file exists at $CFGPATH"
 else
@@ -185,10 +185,10 @@ fi
 echo ""
 echo "Test: add from current directory"
 cd "$TESTREPO2"
-ADD_CWD_OUT=$(autopull add 2>&1) && true
+ADD_CWD_OUT=$(pulley add 2>&1) && true
 if echo "$ADD_CWD_OUT" | grep -q "already registered"; then
     ok "add from current dir resolves correctly (already registered)"
-elif autopull list 2>&1 | grep -q "test-repo2"; then
+elif pulley list 2>&1 | grep -q "test-repo2"; then
     ok "add from current dir works"
 else
     fail "add from current dir failed"
@@ -197,8 +197,8 @@ fi
 # ── Test: help ─────────────────────────────────────────────────────────────
 echo ""
 echo "Test: help"
-HELP_OUT=$(autopull help 2>&1)
-if echo "$HELP_OUT" | grep -q "autopull add"; then
+HELP_OUT=$(pulley help 2>&1)
+if echo "$HELP_OUT" | grep -q "pulley add"; then
     ok "help shows usage"
 else
     fail "help output missing"
@@ -207,7 +207,7 @@ fi
 # ── Test: version ──────────────────────────────────────────────────────────
 echo ""
 echo "Test: version"
-VER_OUT=$(autopull version 2>&1)
+VER_OUT=$(pulley version 2>&1)
 if echo "$VER_OUT" | grep -qE "[0-9]+\.[0-9]+\.[0-9]+"; then
     ok "version shows semver"
 else
@@ -217,7 +217,7 @@ fi
 # ── Test: remove non-existent repo ────────────────────────────────────────
 echo ""
 echo "Test: remove non-existent repo"
-RM_OUT=$(autopull remove "/nonexistent/path" 2>&1) && RM_RC=$? || RM_RC=$?
+RM_OUT=$(pulley remove "/nonexistent/path" 2>&1) && RM_RC=$? || RM_RC=$?
 if [ "$RM_RC" -ne 0 ] || echo "$RM_OUT" | grep -q "not found"; then
     ok "removing non-existent repo fails gracefully"
 else
@@ -227,9 +227,9 @@ fi
 # ── Test: remove all then list ────────────────────────────────────────────
 echo ""
 echo "Test: empty list after removing all"
-autopull remove "$TESTREPO2" 2>&1 || true
-autopull remove "$CLONE" 2>&1 || true
-EMPTY_LIST=$(autopull list)
+pulley remove "$TESTREPO2" 2>&1 || true
+pulley remove "$CLONE" 2>&1 || true
+EMPTY_LIST=$(pulley list)
 if echo "$EMPTY_LIST" | grep -q "No repos"; then
     ok "empty list message shown"
 else

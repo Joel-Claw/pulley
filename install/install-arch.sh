@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# autopull installer for Arch Linux
+# pulley installer for Arch Linux
 set -euo pipefail
 
-echo "=== autopull installer (Arch Linux) ==="
+echo "=== pulley installer (Arch Linux) ==="
 
 # Check root
 if [ "$(id -u)" -ne 0 ]; then
@@ -17,26 +17,26 @@ if ! command -v go &>/dev/null; then
 fi
 
 # Build
-echo "Building autopull..."
+echo "Building pulley..."
 TMPDIR=$(mktemp -d)
-cp -r . "$TMPDIR/autopull"
-cd "$TMPDIR/autopull"
-go build -ldflags="-s -w" -o autopull .
+cp -r . "$TMPDIR/pulley"
+cd "$TMPDIR/pulley"
+go build -ldflags="-s -w" -o pulley .
 
 # Install binary
-install -m 755 autopull /usr/local/bin/autopull
-echo "Installed: /usr/local/bin/autopull"
+install -m 755 pulley /usr/local/bin/pulley
+echo "Installed: /usr/local/bin/pulley"
 
 # Install systemd service
-cat > /etc/systemd/system/autopull.service <<'EOF'
+cat > /etc/systemd/system/pulley.service <<'EOF'
 [Unit]
-Description=AutoPull - Automatic Git Pull Daemon
+Description=Pulley - Automatic Git Pull Daemon
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/autopull daemon
+ExecStart=/usr/local/bin/pulley daemon
 Restart=on-failure
 RestartSec=30
 
@@ -45,15 +45,15 @@ WantedBy=multi-user.target
 EOF
 
 if [ -n "${SUDO_USER:-}" ]; then
-    sed -i "s/\[Service\]/[Service]\nUser=$SUDO_USER\nGroup=$SUDO_USER/" /etc/systemd/system/autopull.service
+    sed -i "s/\[Service\]/[Service]\nUser=$SUDO_USER\nGroup=$SUDO_USER/" /etc/systemd/system/pulley.service
 fi
 
 systemctl daemon-reload
-systemctl enable autopull
-echo "Installed: /etc/systemd/system/autopull.service"
+systemctl enable pulley
+echo "Installed: /etc/systemd/system/pulley.service"
 echo ""
 echo "Done! Next steps:"
-echo "  autopull add /path/to/repo --interval 15m"
-echo "  sudo systemctl start autopull"
+echo "  pulley add /path/to/repo --interval 15m"
+echo "  sudo systemctl start pulley"
 
 rm -rf "$TMPDIR"

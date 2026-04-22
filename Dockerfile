@@ -6,10 +6,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /opt/autopull
+WORKDIR /opt/pulley
 COPY . .
 
-RUN go build -ldflags="-s -w" -o /usr/local/bin/autopull ./cmd/autopull
+RUN go build -ldflags="-s -w" -o /usr/local/bin/pulley ./cmd/pulley
 
 RUN useradd -m -s /bin/bash testuser
 

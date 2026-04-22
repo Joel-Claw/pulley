@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# autopull installer for Debian/Ubuntu
+# pulley installer for Debian/Ubuntu
 set -euo pipefail
 
 VERSION="${1:-latest}"
-BINARY="/usr/local/bin/autopull"
-SERVICE_FILE="/etc/systemd/system/autopull.service"
+BINARY="/usr/local/bin/pulley"
+SERVICE_FILE="/etc/systemd/system/pulley.service"
 CONFIG_DIR="/home"
 
-echo "=== autopull installer (Debian/Ubuntu) ==="
+echo "=== pulley installer (Debian/Ubuntu) ==="
 
 # Check root
 if [ "$(id -u)" -ne 0 ]; then
@@ -23,27 +23,27 @@ if ! command -v go &>/dev/null; then
 fi
 
 # Build
-echo "Building autopull..."
+echo "Building pulley..."
 TMPDIR=$(mktemp -d)
-cp -r . "$TMPDIR/autopull"
-cd "$TMPDIR/autopull"
-go build -ldflags="-s -w" -o autopull .
-strip autopull 2>/dev/null || true
+cp -r . "$TMPDIR/pulley"
+cd "$TMPDIR/pulley"
+go build -ldflags="-s -w" -o pulley .
+strip pulley 2>/dev/null || true
 
 # Install binary
-install -m 755 autopull "$BINARY"
+install -m 755 pulley "$BINARY"
 echo "Installed: $BINARY"
 
 # Install systemd service
 cat > "$SERVICE_FILE" <<'EOF'
 [Unit]
-Description=AutoPull - Automatic Git Pull Daemon
+Description=Pulley - Automatic Git Pull Daemon
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/autopull daemon
+ExecStart=/usr/local/bin/pulley daemon
 Restart=on-failure
 RestartSec=30
 
@@ -60,11 +60,11 @@ systemctl daemon-reload
 echo "Installed: $SERVICE_FILE"
 
 # Enable but don't start yet (user needs to add repos first)
-systemctl enable autopull
+systemctl enable pulley
 echo ""
 echo "Done! Next steps:"
-echo "  autopull add /path/to/repo --interval 15m"
-echo "  sudo systemctl start autopull"
+echo "  pulley add /path/to/repo --interval 15m"
+echo "  sudo systemctl start pulley"
 
 # Cleanup
 rm -rf "$TMPDIR"
